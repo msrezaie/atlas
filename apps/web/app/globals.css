@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
+:root {
+  --background: #020b18;
+  --foreground: #e8f4ff;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: #020b18;
+  color: #e8f4ff;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00c8a8;
+  cursor: pointer;
+  border: 2px solid #020b18;
+  box-shadow: 0 0 0 3px rgba(0,200,168,0.25);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00c8a8;
+  cursor: pointer;
+  border: 2px solid #020b18;
+}

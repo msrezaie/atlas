@@ -1,0 +1,12 @@
+{
+  "name": "@atlas/data",
+  "version": "0.0.1",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": { 
+    ".": "./index.ts",
+    "./countries": "./countries.ts",
+    "./map": "./map.ts",
+    "./regions": "./regions.ts"
+  }
+}
