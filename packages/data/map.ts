@@ -44,5 +44,8 @@ export const NUM_TO_ISO2: Record<number, string> = {
   598:"pg", 882:"ws",  90:"sb", 776:"to", 798:"tv", 548:"vu",
 };
 
-export const GEO_URL =
-  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
+// cdn
+// export const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json"
+
+// local
+export const GEO_URL = "/countries-50m.json"

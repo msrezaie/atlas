@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "@vnedyalk0v/react19-simple-maps";
 import { geoOrthographic, geoPath, geoGraticule } from "d3-geo";
 import { feature } from "topojson-client";
@@ -15,6 +15,7 @@ import { GEO_URL, NUM_TO_ISO2 } from "@atlas/data";
 import { REGIONS, REGION_VIEW, CONTINENT_COLOR } from "@atlas/data";
 import { TIME_LIMIT, ROUNDS } from "@atlas/game-logic/config";
 import { shuffle, filterRegion } from "@atlas/game-logic/utils";
+import type { FeatureCollection } from "geojson";
 
 // ─── RotatingGlobe ────────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ function RotatingGlobe({ dimmed }: { dimmed: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef  = useRef<unknown>(null);
   const rotRef    = useRef(-30);
-  const rafRef    = useRef<number>();
+  const rafRef    = useRef<number>(0);
   const stars     = useRef<{ x: number; y: number; r: number; a: number }[]>([]);
 
   useEffect(() => {
@@ -80,10 +81,8 @@ function RotatingGlobe({ dimmed }: { dimmed: boolean }) {
 
       if (worldRef.current) {
         const topo = worldRef.current as Parameters<typeof feature>[0];
-        const countries = feature(
-          topo,
-          (topo as { objects: { countries: Parameters<typeof feature>[1] } }).objects.countries
-        );
+        const topoObj = topo as unknown as { objects: { countries: Parameters<typeof feature>[1] } };
+        const countries = feature(topo, topoObj.objects.countries);
         ctx.beginPath();
         path(countries as unknown as GeoJSON.GeometryObject);
         ctx.fillStyle = "rgba(14,55,115,0.8)";
@@ -248,6 +247,66 @@ function ResultsScreen({
   );
 }
 
+// ─── CountryPath ──────────────────────────────────────────────────────────────
+// Isolated so React.memo can skip re-rendering countries whose state hasn't changed.
+
+interface CountryPathProps {
+  geo: GeoJSON.Feature;
+  rsmKey: string;
+  iso2: string | undefined;
+  mapState: MapState | "neutral";
+  inPool: boolean;
+  answered: boolean;
+  continentBase: string;
+  continentHover: string;
+  continentBorder: string;
+  onCountryClick: (iso2: string) => void;
+}
+
+const STYLE_STATIC = { default: { outline: "none", transition: "fill 0.18s ease" }, pressed: { outline: "none" } };
+
+const CountryPath = memo(function CountryPath({
+  geo, rsmKey, iso2, mapState, inPool, answered,
+  continentBase, continentHover, continentBorder, onCountryClick,
+}: CountryPathProps) {
+  const fill   = mapState === "correct" ? "#16a34a"
+               : mapState === "incorrect" ? "#b91c1c"
+               : inPool ? continentBase : "#040b16";
+  const stroke = mapState === "correct" ? "#4ade80"
+               : mapState === "incorrect" ? "#f87171"
+               : inPool ? continentBorder : "#030a12";
+  const strokeWidth = mapState !== "neutral" ? 0.8 : inPool ? 0.4 : 0.1;
+
+  const hoverFill = (inPool && answered === false && mapState === "neutral")
+    ? continentHover : fill;
+
+  const style = {
+    ...STYLE_STATIC,
+    hover: {
+      fill: hoverFill,
+      outline: "none",
+      cursor: inPool && !answered ? "pointer" : "default",
+    },
+  };
+
+  return (
+    <Geography
+      key={rsmKey}
+      geography={geo}
+      fill={fill}
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+      style={style}
+      onClick={() => { if (inPool && !answered && iso2) onCountryClick(iso2); }}
+    />
+  );
+}, (prev, next) =>
+  prev.mapState   === next.mapState   &&
+  prev.inPool     === next.inPool     &&
+  prev.answered   === next.answered   &&
+  prev.rsmKey     === next.rsmKey
+);
+
 // ─── WorldMapGame ─────────────────────────────────────────────────────────────
 
 interface MapPosition { coordinates: [number, number]; zoom: number; }
@@ -261,6 +320,18 @@ function WorldMapGame({
 }) {
   const view = REGION_VIEW[region];
   const [pos, setPos] = useState<MapPosition>({ coordinates: view.center, zoom: view.zoom });
+
+  const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
+
+  useEffect(() => {
+    fetch(GEO_URL)
+      .then((res) => res.json())
+      .then((topo) => {
+        const fc = feature(topo, topo.objects.countries) as unknown as FeatureCollection;
+        setGeoData(fc);
+      })
+      .catch((err) => console.error("topojson load failed:", err));
+  }, []);
 
   useEffect(() => {
     const v = REGION_VIEW[region];
@@ -278,41 +349,6 @@ function WorldMapGame({
 
   const iso2Of = (geoId: string | number) => NUM_TO_ISO2[parseInt(geoId as string)];
 
-  const getFill = (iso2?: string): string => {
-    if (!iso2) return "#020810";
-    const s = countryStates[iso2] || "neutral";
-    if (s === "correct")   return "#16a34a";
-    if (s === "incorrect") return "#b91c1c";
-    const country = COUNTRIES.find((c) => c.iso2 === iso2);
-    if (!country || !quizPool.has(iso2)) return "#040b16";
-    return CONTINENT_COLOR[country.continent].base;
-  };
-
-  const getHoverFill = (iso2?: string): string => {
-    if (!iso2 || !quizPool.has(iso2) || answered) return getFill(iso2);
-    const s = countryStates[iso2] || "neutral";
-    if (s !== "neutral") return getFill(iso2);
-    const country = COUNTRIES.find((c) => c.iso2 === iso2);
-    return country ? CONTINENT_COLOR[country.continent].hover : getFill(iso2);
-  };
-
-  const getStroke = (iso2?: string): string => {
-    if (!iso2) return "#020810";
-    const s = countryStates[iso2] || "neutral";
-    if (s === "correct")   return "#4ade80";
-    if (s === "incorrect") return "#f87171";
-    const country = COUNTRIES.find((c) => c.iso2 === iso2);
-    if (!country || !quizPool.has(iso2)) return "#030a12";
-    return CONTINENT_COLOR[country.continent].border;
-  };
-
-  const getStrokeWidth = (iso2?: string): number => {
-    if (!iso2) return 0.1;
-    const s = countryStates[iso2] || "neutral";
-    if (s !== "neutral") return 0.8;
-    return quizPool.has(iso2) ? 0.4 : 0.1;
-  };
-
   return (
     <div className="relative w-full h-full" style={{ background: "#030810" }}>
       <ComposableMap
@@ -321,32 +357,36 @@ function WorldMapGame({
         style={{ width: "100%", height: "100%", background: "transparent" }}
       >
         <ZoomableGroup
-          zoom={pos.zoom} center={pos.coordinates} onMoveEnd={handleMoveEnd}
+          zoom={pos.zoom} center={pos.coordinates as never} onMoveEnd={handleMoveEnd}
           minZoom={view.minZoom} maxZoom={16}
         >
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const iso2  = iso2Of(geo.id as string);
-                const inPool = !!iso2 && quizPool.has(iso2);
-                return (
-                  <Geography key={geo.rsmKey} geography={geo}
-                    fill={getFill(iso2)} stroke={getStroke(iso2)} strokeWidth={getStrokeWidth(iso2)}
-                    style={{
-                      default: { outline: "none", transition: "fill 0.18s ease" },
-                      hover: {
-                        fill: getHoverFill(iso2),
-                        outline: "none",
-                        cursor: inPool && !answered ? "pointer" : "default",
-                      },
-                      pressed: { outline: "none" },
-                    }}
-                    onClick={() => { if (inPool && !answered && iso2) onCountryClick(iso2); }}
-                  />
-                );
-              })
-            }
-          </Geographies>
+          {geoData ? (
+            <Geographies geography={geoData}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const rsmKey = (geo as unknown as { rsmKey: string }).rsmKey;
+                  const iso2   = iso2Of(geo.id as string);
+                  const country = iso2 ? COUNTRIES.find((c) => c.iso2 === iso2) : undefined;
+                  const colors  = country ? CONTINENT_COLOR[country.continent] : { base: "#040b16", hover: "#040b16", border: "#030a12" };
+                  return (
+                    <CountryPath
+                    key={rsmKey}
+                    geo={geo}
+                    rsmKey={rsmKey}
+                    iso2={iso2}
+                    mapState={countryStates[iso2 ?? ""] ?? "neutral"}
+                    inPool={!!iso2 && quizPool.has(iso2)}
+                    answered={answered}
+                    continentBase={colors.base}
+                    continentHover={colors.hover}
+                    continentBorder={colors.border}
+                    onCountryClick={onCountryClick}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          ) : <p>Loading data...</p>}
         </ZoomableGroup>
       </ComposableMap>
 
@@ -395,7 +435,7 @@ function FindCountry({
   const correctRef  = useRef(0);
   const answeredRef = useRef(false);
   const qiRef       = useRef(0);
-  const advTimer    = useRef<ReturnType<typeof setTimeout>>();
+  const advTimer    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const pool     = filterRegion(region);
   const quizPool = new Set(pool.map((c) => c.iso2));
