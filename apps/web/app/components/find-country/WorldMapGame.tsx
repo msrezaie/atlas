@@ -8,8 +8,18 @@ import { geoCentroid } from "d3-geo";
 import type { MapState, Region } from "@atlas/types";
 import { GEO_URL, NUM_TO_ISO2, REGION_VIEW, LOCATOR_DOTS } from "@atlas/data";
 
-// Fetch starts at module-import time so data is ready (or nearly ready) when the map fires "load"
-const geoPromise: Promise<GeoJSON.FeatureCollection> = fetch(GEO_URL).then((r) => r.json());
+// Defer the fetch to first use; module-level fetch would run during SSR,
+// where Node rejects the relative URL.
+let geoPromise: Promise<GeoJSON.FeatureCollection> | null = null;
+const loadGeo = () => (
+  geoPromise ??= fetch(GEO_URL)
+    .then((r) => r.json() as Promise<GeoJSON.FeatureCollection>)
+    .catch((err) => {
+      console.error("Failed to load geojson", err);
+      geoPromise = null;
+      throw err;
+    })
+);
 
 const ISO2_TO_NUM: Record<string, number> = Object.fromEntries(
   Object.entries(NUM_TO_ISO2).map(([num, iso2]) => [iso2, parseInt(num)])
@@ -33,9 +43,9 @@ const FILL_EXPR: maplibregl.ExpressionSpecification = [
   ["all",
     ["boolean", ["feature-state", "hover"],  false],
     ["boolean", ["feature-state", "inPool"], false],
-  ], "#a8c4b8",
+  ], "#dce8e2",
   ["boolean", ["feature-state", "inPool"], false], "#c8dbd4",
-  "#dce8e2",
+  "#a8c4b8",
 ];
 
 const BORDER_COLOR_EXPR: maplibregl.ExpressionSpecification = [
@@ -100,11 +110,16 @@ export function WorldMapGame({
     });
     mapRef.current = map;
 
+    const activeDotUnder = (point: maplibregl.Point) => {
+      if (!map.getLayer("country-dots")) return false;
+      return map.queryRenderedFeatures(point, { layers: ["country-dots"] }).some((f) => {
+        const iso2 = NUM_TO_ISO2[Number(f.id)];
+        return iso2 != null && quizPoolRef.current.has(iso2);   // only dots that are real targets
+      });
+    };
+
     map.on("load", async () => {
-      // const topo    = await fetch(GEO_URL).then((r) => r.json());
-      // const topoObj = topo as unknown as { objects: { countries: Parameters<typeof feature>[1] } };
-      // const geojson = feature(topo, topoObj.objects.countries) as unknown as GeoJSON.FeatureCollection;
-      const geojson = await geoPromise;
+      const geojson = await loadGeo();
 
       map.addSource("countries", { type: "geojson", data: geojson });
 
@@ -147,7 +162,7 @@ export function WorldMapGame({
             "case",
             ["==", ["feature-state", "status"], "correct"],   "#22c55e",
             ["==", ["feature-state", "status"], "incorrect"], "#ef4444",
-            "#0ea5e9",
+            "#c8dbd4",
           ],
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
@@ -163,6 +178,13 @@ export function WorldMapGame({
 
     // Hover
     map.on("mousemove", "country-fills", (e) => {
+      if (activeDotUnder(e.point)) {
+        if (hoveredId.current !== null) {
+          map.setFeatureState({ source: "countries", id: hoveredId.current }, { hover: false });
+          hoveredId.current = null;
+        }
+        return;
+      }
       const id = e.features?.[0]?.id as number | undefined;
       if (id == null) return;
       if (hoveredId.current !== null && hoveredId.current !== id) {
@@ -185,6 +207,8 @@ export function WorldMapGame({
 
     // Click — uses ref so it always calls the current question's handler
     map.on("click", "country-fills", (e) => {
+      if (activeDotUnder(e.point)) return; 
+      
       const numId = e.features?.[0]?.id as number | undefined;
       if (numId == null) return;
       const iso2 = NUM_TO_ISO2[numId];
