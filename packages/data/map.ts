@@ -1,11 +1,18 @@
 // Countries that don't appear as separate clickable regions in the topojson
 // (micro-atolls, city-states, and territories with topojson representation issues)
 export const MAP_EXCLUDED = new Set<string>([
-  "mv", "tv", "nr", "mh", "ki", "fm", "pw", // Pacific micro-atolls
-  "sc", "km", "st", "mu", "cv",              // Indian/Atlantic tiny islands
-  "mc", "va", "sm", "li", "ad", "xk",        // European micro-states / Kosovo
-  "tw", "ps",                                 // Taiwan (China issue) / Palestine
+  // "mv", "tv", "nr", "mh", "ki", "fm", "pw", // Pacific micro-atolls
+  // "sc", "km", "st", "mu", "cv",              // Indian/Atlantic tiny islands
+  // "mc", "va", "sm", "li", "ad",        // European micro-states / Kosovo
 ]);
+
+// export const LOCATOR_DOTS = new Set<string>([
+//   "va", "sm", "mc", "li", "ad", "mt",            // European microstates + Malta
+//   "mv", "tv", "nr", "mh", "ki", "fm", "pw",      // Pacific micro-atolls
+//   "sc", "km", "st", "mu", "cv",                  // Indian/Atlantic small islands
+//   "sg", "bh",                                    // Singapore, Bahrain
+//   "ag", "bb", "dm", "gd", "kn", "lc", "vc",      // Caribbean small islands
+// ]);
 
 // ISO 3166-1 numeric → ISO 3166-1 alpha-2
 // Used to map world-atlas topojson feature IDs to our country records
@@ -19,14 +26,14 @@ export const NUM_TO_ISO2: Record<number, string> = {
   // Europe
   8:"al",   20:"ad",  40:"at",  56:"be",  70:"ba", 100:"bg", 112:"by", 191:"hr",
   196:"cy", 203:"cz", 208:"dk", 233:"ee", 246:"fi", 250:"fr", 268:"ge", 276:"de",
-  300:"gr", 348:"hu", 352:"is", 372:"ie", 380:"it", 383:"xk", 428:"lv", 438:"li",
+  300:"gr", 304:"gl", 348:"hu", 352:"is", 372:"ie", 380:"it", 383:"xk", 428:"lv", 438:"li",
   440:"lt", 442:"lu", 470:"mt", 492:"mc", 498:"md", 499:"me", 528:"nl", 578:"no",
   616:"pl", 620:"pt", 642:"ro", 643:"ru", 674:"sm", 688:"rs", 703:"sk", 705:"si",
   724:"es", 752:"se", 756:"ch", 792:"tr", 804:"ua", 807:"mk", 826:"gb", 336:"va",
   31:"az",  51:"am",
   // Asia
   4:"af",   48:"bh",  50:"bd",  64:"bt",  96:"bn", 116:"kh", 156:"cn", 356:"in",
-  360:"id", 368:"iq", 376:"il", 392:"jp", 400:"jo", 398:"kz", 414:"kw", 417:"kg",
+  360:"id", 364:"ir", 368:"iq", 376:"il", 392:"jp", 400:"jo", 398:"kz", 414:"kw", 417:"kg",
   418:"la", 422:"lb", 458:"my", 462:"mv", 496:"mn", 104:"mm", 524:"np", 408:"kp",
   512:"om", 586:"pk", 275:"ps", 608:"ph", 634:"qa", 682:"sa", 702:"sg", 410:"kr",
   144:"lk", 760:"sy", 158:"tw", 762:"tj", 764:"th", 626:"tl", 795:"tm", 784:"ae",
@@ -49,4 +56,6 @@ export const NUM_TO_ISO2: Record<number, string> = {
 //   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
 // local
-export const GEO_URL = "/countries-110m.json";
+// export const GEO_URL = "/countries-50m.json";
+export const GEO_URL = "/countries-10m.geojson";
+export const GEO_URL_GLOBE = "/countries-110m.geojson";

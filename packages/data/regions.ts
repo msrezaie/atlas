@@ -16,9 +16,9 @@ export const REGION_VIEW: Record<Region, {
 }> = {
   World:    { center: [0, 15],    zoom: 1,   minZoom: 1   },
   Americas: { center: [-80, 5],   zoom: 1.8, minZoom: 1.8 },
-  Europe:   { center: [20, 55],   zoom: 5,   minZoom: 5   },
+  Europe:   { center: [20, 55],   zoom: 2,   minZoom: 3   },
   Africa:   { center: [22, 2],    zoom: 3,   minZoom: 3   },
-  Asia:     { center: [95, 30],   zoom: 2,   minZoom: 2   },
+  Asia:     { center: [95, 30],   zoom: 2,   minZoom: 3   },
   Oceania:  { center: [155, -25], zoom: 3.5, minZoom: 3.5 },
 };
 

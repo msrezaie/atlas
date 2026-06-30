@@ -3,45 +3,46 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { feature } from "topojson-client";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 
 import type { MapState, Region } from "@atlas/types";
-import { COUNTRIES, GEO_URL, NUM_TO_ISO2, REGION_VIEW, CONTINENT_COLOR } from "@atlas/data";
+import { GEO_URL, NUM_TO_ISO2, REGION_VIEW } from "@atlas/data";
 
-// Reverse lookup: iso2 → numeric feature ID used by the topojson / MapLibre source
+// Fetch starts at module-import time so data is ready (or nearly ready) when the map fires "load"
+const geoPromise: Promise<GeoJSON.FeatureCollection> = fetch(GEO_URL).then((r) => r.json());
+
 const ISO2_TO_NUM: Record<string, number> = Object.fromEntries(
   Object.entries(NUM_TO_ISO2).map(([num, iso2]) => [iso2, parseInt(num)])
 );
 
-const BLANK_STYLE: maplibregl.StyleSpecification = {
+// ── Map style ─────────────────────────────────────────────────────────────────
+// No tile source — just a flat ocean background with our GeoJSON countries on top.
+
+const MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {},
-  layers: [{ id: "background", type: "background", paint: { "background-color": "#030810" } }],
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#b6cdd6" } }],
 };
 
-// Paint expression that reads game state from MapLibre feature-state
-const FILL_COLOR_EXPR: maplibregl.ExpressionSpecification = [
+// ── Paint expressions (read from feature-state set via setFeatureState) ───────
+
+const FILL_EXPR: maplibregl.ExpressionSpecification = [
   "case",
-  ["==", ["feature-state", "status"], "correct"],   "#16a34a",
-  ["==", ["feature-state", "status"], "incorrect"], "#b91c1c",
+  ["==", ["feature-state", "status"], "correct"],   "#22c55e",
+  ["==", ["feature-state", "status"], "incorrect"], "#ef4444",
   ["all",
     ["boolean", ["feature-state", "hover"],  false],
     ["boolean", ["feature-state", "inPool"], false],
-  ], ["coalesce", ["feature-state", "continentHover"], "#040b16"],
-  ["boolean", ["feature-state", "inPool"], false],
-    ["coalesce", ["feature-state", "continentBase"], "#040b16"],
-  "#040b16",
+  ], "#a8c4b8",
+  ["boolean", ["feature-state", "inPool"], false], "#c8dbd4",
+  "#dce8e2",
 ];
 
 const BORDER_COLOR_EXPR: maplibregl.ExpressionSpecification = [
   "case",
-  ["==", ["feature-state", "status"], "correct"],   "#4ade80",
-  ["==", ["feature-state", "status"], "incorrect"], "#f87171",
-  ["boolean", ["feature-state", "inPool"], false],
-    ["coalesce", ["feature-state", "continentBorder"], "#030a12"],
-  "#030a12",
+  ["==", ["feature-state", "status"], "correct"],   "#16a34a",
+  ["==", ["feature-state", "status"], "incorrect"], "#dc2626",
+  "#8faaa4",
 ];
 
 const BORDER_WIDTH_EXPR: maplibregl.ExpressionSpecification = [
@@ -49,10 +50,12 @@ const BORDER_WIDTH_EXPR: maplibregl.ExpressionSpecification = [
   ["any",
     ["==", ["feature-state", "status"], "correct"],
     ["==", ["feature-state", "status"], "incorrect"],
-  ], 1.2,
-  ["boolean", ["feature-state", "inPool"], false], 0.6,
-  0.15,
+  ], 1.5,
+  ["boolean", ["feature-state", "inPool"], false], 0.8,
+  0.4,
 ];
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 interface WorldMapGameProps {
   countryStates: Record<string, MapState>;
@@ -65,15 +68,21 @@ interface WorldMapGameProps {
 export function WorldMapGame({
   countryStates, onCountryClick, region, quizPool, answered,
 }: WorldMapGameProps) {
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const mapRef        = useRef<maplibregl.Map | null>(null);
-  const hoveredId     = useRef<number | null>(null);
-  const answeredRef   = useRef(answered);
-  const quizPoolRef   = useRef(quizPool);
+  const containerRef       = useRef<HTMLDivElement>(null);
+  const mapRef             = useRef<maplibregl.Map | null>(null);
+  const hoveredId          = useRef<number | null>(null);
+  const hoveredDot         = useRef<number | null>(null);
 
-  // Keep refs in sync so event handlers always see current values without re-registering
-  useEffect(() => { answeredRef.current  = answered;  }, [answered]);
-  useEffect(() => { quizPoolRef.current  = quizPool;  }, [quizPool]);
+  // Refs so event handlers always see current values without re-registering
+  const answeredRef        = useRef(answered);
+  const quizPoolRef        = useRef(quizPool);
+  const onCountryClickRef  = useRef(onCountryClick);
+  const countryStatesRef   = useRef(countryStates);
+
+  useEffect(() => { answeredRef.current       = answered;       }, [answered]);
+  useEffect(() => { quizPoolRef.current       = quizPool;       }, [quizPool]);
+  useEffect(() => { onCountryClickRef.current = onCountryClick; }, [onCountryClick]);
+  useEffect(() => { countryStatesRef.current  = countryStates;  }, [countryStates]);
 
   // ── Initialise map once ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -81,38 +90,38 @@ export function WorldMapGame({
     const view = REGION_VIEW[region];
 
     const map = new maplibregl.Map({
-      container:        containerRef.current,
-      style:            BLANK_STYLE,
-      center:           view.center as [number, number],
-      zoom:             view.zoom,
-      minZoom:          view.minZoom,
-      maxZoom:          16,
+      container:          containerRef.current,
+      style:              MAP_STYLE,
+      center:             view.center as [number, number],
+      zoom:               view.zoom,
+      minZoom:            view.minZoom,
+      maxZoom:            16,
       attributionControl: false,
     });
     mapRef.current = map;
 
     map.on("load", async () => {
-      // Fetch topojson and convert to GeoJSON in one shot
-      const topo    = await fetch(GEO_URL).then((r) => r.json());
-      const topoObj = topo as unknown as { objects: { countries: Parameters<typeof feature>[1] } };
-      const geojson = feature(topo, topoObj.objects.countries) as unknown as GeoJSON.FeatureCollection;
+      // const topo    = await fetch(GEO_URL).then((r) => r.json());
+      // const topoObj = topo as unknown as { objects: { countries: Parameters<typeof feature>[1] } };
+      // const geojson = feature(topo, topoObj.objects.countries) as unknown as GeoJSON.FeatureCollection;
+      const geojson = await geoPromise;
 
-      map.addSource("countries", { type: "geojson", data: geojson, generateId: false });
+      map.addSource("countries", { type: "geojson", data: geojson });
 
       map.addLayer({
         id: "country-fills", type: "fill", source: "countries",
-        paint: { "fill-color": FILL_COLOR_EXPR, "fill-opacity": 1 },
+        paint: { "fill-color": FILL_EXPR, "fill-opacity": 1 },
       });
       map.addLayer({
         id: "country-borders", type: "line", source: "countries",
         paint: { "line-color": BORDER_COLOR_EXPR, "line-width": BORDER_WIDTH_EXPR },
       });
 
-      // Initialise feature state for every country
-      initFeatureStates(map, quizPoolRef.current, {});
+      // Apply any game state that arrived before the source was ready
+      applyFeatureStates(map, quizPoolRef.current, countryStatesRef.current);
     });
 
-    // Hover tracking
+    // Hover
     map.on("mousemove", "country-fills", (e) => {
       const id = e.features?.[0]?.id as number | undefined;
       if (id == null) return;
@@ -121,8 +130,9 @@ export function WorldMapGame({
       }
       hoveredId.current = id;
       map.setFeatureState({ source: "countries", id }, { hover: true });
+      const iso2 = NUM_TO_ISO2[id] ?? "";
       map.getCanvas().style.cursor =
-        !answeredRef.current && quizPoolRef.current.has(NUM_TO_ISO2[id] ?? "") ? "pointer" : "default";
+        !answeredRef.current && quizPoolRef.current.has(iso2) ? "pointer" : "default";
     });
 
     map.on("mouseleave", "country-fills", () => {
@@ -133,13 +143,13 @@ export function WorldMapGame({
       map.getCanvas().style.cursor = "default";
     });
 
-    // Click handler
+    // Click — uses ref so it always calls the current question's handler
     map.on("click", "country-fills", (e) => {
       const numId = e.features?.[0]?.id as number | undefined;
       if (numId == null) return;
       const iso2 = NUM_TO_ISO2[numId];
       if (iso2 && !answeredRef.current && quizPoolRef.current.has(iso2)) {
-        onCountryClick(iso2);
+        onCountryClickRef.current(iso2);
       }
     });
 
@@ -150,11 +160,13 @@ export function WorldMapGame({
   // ── Sync game state → feature state ─────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    initFeatureStates(map, quizPool, countryStates);
+    if (!map) return;
+    // If source isn't loaded yet, the load handler above will apply on ready
+    if (!map.getSource("countries")) return;
+    applyFeatureStates(map, quizPool, countryStates);
   }, [countryStates, quizPool]);
 
-  // ── Fly to new region ────────────────────────────────────────────────────────
+  // ── Region change → fly ──────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -176,43 +188,35 @@ export function WorldMapGame({
 
       <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 z-10">
         {([
-          { icon: <Plus     className="w-3.5 h-3.5" />, action: zoomIn    },
-          { icon: <Minus    className="w-3.5 h-3.5" />, action: zoomOut   },
-          { icon: <RotateCcw className="w-3 h-3"   />, action: resetView  },
+          { icon: <Plus      className="w-3.5 h-3.5" />, action: zoomIn   },
+          { icon: <Minus     className="w-3.5 h-3.5" />, action: zoomOut  },
+          { icon: <RotateCcw className="w-3 h-3"    />, action: resetView },
         ] as const).map(({ icon, action }, i) => (
           <button key={i} onClick={action}
-            className="w-8 h-8 rounded-lg bg-[#061428]/90 border border-white/15 text-[#e8f4ff] flex items-center justify-center hover:bg-[#0a2040] transition-colors backdrop-blur-sm shadow-lg">
+            className="w-8 h-8 rounded-lg bg-white/80 border border-black/10 text-slate-600 flex items-center justify-center hover:bg-white transition-colors shadow-md">
             {icon}
           </button>
         ))}
       </div>
 
-      <p className="absolute bottom-4 left-4 text-[10px] text-[#6b9ab8]/55 font-medium select-none z-10">
+      <p className="absolute bottom-4 left-4 text-[10px] text-slate-500/70 font-medium select-none z-10">
         Scroll to zoom · drag to pan
       </p>
     </div>
   );
 }
 
-// Sets feature state for all countries based on current quiz pool and game states.
-// Called on mount and whenever countryStates changes.
-function initFeatureStates(
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function applyFeatureStates(
   map: maplibregl.Map,
   quizPool: Set<string>,
   countryStates: Record<string, MapState>,
 ) {
   for (const [iso2, numId] of Object.entries(ISO2_TO_NUM)) {
-    const country  = COUNTRIES.find((c) => c.iso2 === iso2);
-    const colors   = country ? CONTINENT_COLOR[country.continent] : null;
-    const inPool   = quizPool.has(iso2);
-    const status   = countryStates[iso2] ?? "neutral";
-
     map.setFeatureState({ source: "countries", id: numId }, {
-      status,
-      inPool,
-      continentBase:   colors?.base   ?? "#040b16",
-      continentHover:  colors?.hover  ?? "#040b16",
-      continentBorder: colors?.border ?? "#030a12",
+      status: countryStates[iso2] ?? "neutral",
+      inPool: quizPool.has(iso2),
     });
   }
 }

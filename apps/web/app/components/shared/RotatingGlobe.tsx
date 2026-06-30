@@ -2,18 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import { geoOrthographic, geoPath, geoGraticule } from "d3-geo";
-import { feature } from "topojson-client";
-import { GEO_URL } from "@atlas/data";
+import { GEO_URL_GLOBE } from "@atlas/data";
 
 export function RotatingGlobe({ dimmed }: { dimmed: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const worldRef  = useRef<unknown>(null);
+  const worldRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const rotRef    = useRef(-30);
   const rafRef    = useRef<number>(0);
   const stars     = useRef<{ x: number; y: number; r: number; a: number }[]>([]);
 
   useEffect(() => {
-    fetch(GEO_URL)
+    fetch(GEO_URL_GLOBE)
       .then((r) => r.json())
       .then((d) => { worldRef.current = d; });
 
@@ -66,9 +65,7 @@ export function RotatingGlobe({ dimmed }: { dimmed: boolean }) {
       ctx.stroke();
 
       if (worldRef.current) {
-        const topo    = worldRef.current as Parameters<typeof feature>[0];
-        const topoObj = topo as unknown as { objects: { countries: Parameters<typeof feature>[1] } };
-        const countries = feature(topo, topoObj.objects.countries);
+        const countries = worldRef.current as GeoJSON.FeatureCollection;
         ctx.beginPath();
         path(countries as unknown as GeoJSON.GeometryObject);
         ctx.fillStyle   = "rgba(14,55,115,0.8)";
