@@ -6,13 +6,14 @@ export const MAP_EXCLUDED = new Set<string>([
   // "mc", "va", "sm", "li", "ad",        // European micro-states / Kosovo
 ]);
 
-// export const LOCATOR_DOTS = new Set<string>([
-//   "va", "sm", "mc", "li", "ad", "mt",            // European microstates + Malta
-//   "mv", "tv", "nr", "mh", "ki", "fm", "pw",      // Pacific micro-atolls
-//   "sc", "km", "st", "mu", "cv",                  // Indian/Atlantic small islands
-//   "sg", "bh",                                    // Singapore, Bahrain
-//   "ag", "bb", "dm", "gd", "kn", "lc", "vc",      // Caribbean small islands
-// ]);
+export const LOCATOR_DOTS = new Set<string>([
+  "va",
+  // "sm", "mc", "li", "ad", "mt",            // European microstates + Malta
+  // "mv", "tv", "nr", "mh", "ki", "fm", "pw",      // Pacific micro-atolls
+  // "sc", "km", "st", "mu", "cv",                  // Indian/Atlantic small islands
+  // "sg", "bh",                                    // Singapore, Bahrain
+  // "ag", "bb", "dm", "gd", "kn", "lc", "vc",      // Caribbean small islands
+]);
 
 // ISO 3166-1 numeric → ISO 3166-1 alpha-2
 // Used to map world-atlas topojson feature IDs to our country records

@@ -4,9 +4,9 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Plus, Minus, RotateCcw } from "lucide-react";
-
+import { geoCentroid } from "d3-geo";
 import type { MapState, Region } from "@atlas/types";
-import { GEO_URL, NUM_TO_ISO2, REGION_VIEW } from "@atlas/data";
+import { GEO_URL, NUM_TO_ISO2, REGION_VIEW, LOCATOR_DOTS } from "@atlas/data";
 
 // Fetch starts at module-import time so data is ready (or nearly ready) when the map fires "load"
 const geoPromise: Promise<GeoJSON.FeatureCollection> = fetch(GEO_URL).then((r) => r.json());
@@ -116,6 +116,46 @@ export function WorldMapGame({
         id: "country-borders", type: "line", source: "countries",
         paint: { "line-color": BORDER_COLOR_EXPR, "line-width": BORDER_WIDTH_EXPR },
       });
+      const dotFeatures = geojson.features
+        .filter((f) => {
+          const iso2 = NUM_TO_ISO2[Number(f.id)];
+          return iso2 && LOCATOR_DOTS.has(iso2);
+        })
+        .map((f) => ({
+          type: "Feature" as const,
+          id: Number(f.id),                       // same numeric id as the polygon
+          properties: { iso2: NUM_TO_ISO2[Number(f.id)] },
+          geometry: { type: "Point" as const, coordinates: geoCentroid(f as GeoJSON.Feature) },
+        }));
+
+      map.addSource("country-dots", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: dotFeatures },
+      });
+
+      map.addLayer({
+        id: "country-dots",
+        type: "circle",
+        source: "country-dots",
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            1, ["case", ["boolean", ["feature-state", "hover"], false], 6,   4],
+            6, ["case", ["boolean", ["feature-state", "hover"], false], 8.5, 6.5],
+          ],
+          "circle-color": [
+            "case",
+            ["==", ["feature-state", "status"], "correct"],   "#22c55e",
+            ["==", ["feature-state", "status"], "incorrect"], "#ef4444",
+            "#0ea5e9",
+          ],
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#ffffff",
+          // only show dots for countries in the current quiz pool
+          "circle-opacity":        ["case", ["boolean", ["feature-state", "inPool"], false], 0.95, 0],
+          "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "inPool"], false], 1, 0],
+        },
+      });
 
       // Apply any game state that arrived before the source was ready
       applyFeatureStates(map, quizPoolRef.current, countryStatesRef.current);
@@ -151,6 +191,33 @@ export function WorldMapGame({
       if (iso2 && !answeredRef.current && quizPoolRef.current.has(iso2)) {
         onCountryClickRef.current(iso2);
       }
+    });
+    map.on("mousemove", "country-dots", (e) => {
+      const id = e.features?.[0]?.id as number | undefined;
+      if (id == null) return;
+      if (hoveredDot.current !== null && hoveredDot.current !== id)
+        map.setFeatureState({ source: "country-dots", id: hoveredDot.current }, { hover: false });
+      hoveredDot.current = id;
+      map.setFeatureState({ source: "country-dots", id }, { hover: true });
+      const iso2 = NUM_TO_ISO2[id] ?? "";
+      map.getCanvas().style.cursor =
+        !answeredRef.current && quizPoolRef.current.has(iso2) ? "pointer" : "default";
+    });
+
+    map.on("mouseleave", "country-dots", () => {
+      if (hoveredDot.current !== null) {
+        map.setFeatureState({ source: "country-dots", id: hoveredDot.current }, { hover: false });
+        hoveredDot.current = null;
+      }
+      map.getCanvas().style.cursor = "default";
+    });
+
+    map.on("click", "country-dots", (e) => {
+      const id = e.features?.[0]?.id as number | undefined;
+      if (id == null) return;
+      const iso2 = NUM_TO_ISO2[id];
+      if (iso2 && !answeredRef.current && quizPoolRef.current.has(iso2))
+        onCountryClickRef.current(iso2);
     });
 
     return () => { map.remove(); mapRef.current = null; };
@@ -214,9 +281,9 @@ function applyFeatureStates(
   countryStates: Record<string, MapState>,
 ) {
   for (const [iso2, numId] of Object.entries(ISO2_TO_NUM)) {
-    map.setFeatureState({ source: "countries", id: numId }, {
-      status: countryStates[iso2] ?? "neutral",
-      inPool: quizPool.has(iso2),
-    });
+    const state = { status: countryStates[iso2] ?? "neutral", inPool: quizPool.has(iso2) };
+    map.setFeatureState({ source: "countries", id: numId }, state);
+    if (LOCATOR_DOTS.has(iso2) && map.getSource("country-dots"))
+      map.setFeatureState({ source: "country-dots", id: numId }, state);
   }
 }

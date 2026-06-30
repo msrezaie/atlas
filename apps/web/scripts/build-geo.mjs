@@ -82,7 +82,14 @@ const crossesSeam = (g) => {
 const topo  = JSON.parse(readFileSync(input, "utf8"));
 let geojson = rewind(feature(topo, topo.objects.countries), false); // RFC7946 winding
 
-const PATCH = { Kosovo: 383, Somaliland: 901 }; // give id-less disputed entities an id
+const PATCH = { 
+  Kosovo: 383,
+  Somaliland: 901,
+  "N. Cyprus": 902,                 // northern coast + Karpas peninsula
+  "Cyprus U.N. Buffer Zone": 902,   // the central strip
+  Akrotiri: 902,                    // British base (SW)
+  Dhekelia: 902,                    // British base (SE)
+};
 const DROP  = new Set(["Antarctica"]);          // pole-wrap polygon; not a quiz country
 
 geojson.features = geojson.features.filter((f) => {
