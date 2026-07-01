@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Globe, CheckCircle2, XCircle } from "lucide-react";
 
 import type { Country, Region, MapState, RoundResult } from "@atlas/types";
-import { COUNTRIES } from "@atlas/data";
 import { TIME_LIMIT, ROUNDS } from "@atlas/game-logic/config";
 import { shuffle, filterRegion } from "@atlas/game-logic/utils";
 
@@ -66,7 +65,6 @@ export function FindCountry({ onFinish, onHome }: FindCountryProps) {
         });
       } else {
         setQi(next);
-        setCountryStates({});
         setAnswered(false);
         answeredRef.current = false;
         setFeedbackOk(null);
@@ -96,7 +94,7 @@ export function FindCountry({ onFinish, onHome }: FindCountryProps) {
       answeredRef.current = true;
       setAnswered(true);
       setFeedbackOk(false);
-      setCountryStates({ [current.iso2]: "correct" });
+      setCountryStates((prev => ({ ...prev, [current.iso2]: "missed" })));
       streakRef.current = 0;
       setStreak(0);
       scheduleAdvance();
@@ -111,21 +109,25 @@ export function FindCountry({ onFinish, onHome }: FindCountryProps) {
 
     const isCorrect = iso2 === current.iso2;
     const pts = isCorrect ? calcPoints(timeLeft) : 0;
-    const ns: Record<string, MapState> = {};
+
+    setCountryStates((prev) => {
+      const next = { ...prev };
+      if (isCorrect) {
+        next[iso2] = "found";
+      } else {
+        next[current.iso2] = "missed";
+      } 
+      return next;
+    });
 
     if (isCorrect) {
-      ns[iso2] = "correct";
       scoreRef.current += pts;
       streakRef.current++;
       correctRef.current++;
       lsRef.current = Math.max(lsRef.current, streakRef.current);
     } else {
-      ns[iso2]          = "incorrect";
-      ns[current.iso2]  = "correct";
       streakRef.current = 0;
     }
-
-    setCountryStates(ns);
     setFeedbackOk(isCorrect);
     setScore(scoreRef.current);
     setStreak(streakRef.current);

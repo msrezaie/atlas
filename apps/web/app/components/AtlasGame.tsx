@@ -1,15 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { RoundResult } from "@atlas/types";
+import type { RoundResult, Screen } from "@atlas/types";
 import { RotatingGlobe } from "./shared/RotatingGlobe";
 import { ResultsScreen } from "./shared/ResultsScreen";
 import { Home }          from "./home/Home";
 import { FindCountry }   from "./find-country/FindCountry";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
-
-type Screen = "home" | "find-country" | "results";
 
 export default function AtlasGame() {
   const [screen, setScreen]           = useState<Screen>("home");

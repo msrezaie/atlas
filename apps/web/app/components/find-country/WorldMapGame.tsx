@@ -40,6 +40,8 @@ const FILL_EXPR: maplibregl.ExpressionSpecification = [
   "case",
   ["==", ["feature-state", "status"], "correct"],   "#22c55e",
   ["==", ["feature-state", "status"], "incorrect"], "#ef4444",
+  ["==", ["feature-state", "status"], "found"],   "#15803d",
+  ["==", ["feature-state", "status"], "missed"], "#b45309",
   ["all",
     ["boolean", ["feature-state", "hover"],  false],
     ["boolean", ["feature-state", "inPool"], false],
