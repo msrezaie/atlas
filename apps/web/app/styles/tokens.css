@@ -1,0 +1,272 @@
+/* ============================================================
+   ATLAS DESIGN TOKENS
+   Deep-ocean dark theme. Navy "ink" surfaces evoke the night side
+   of a globe; teal is the signature wayfinding accent; five
+   continent hues form a playful cartographic palette.
+   Ported from the Atlas Design System (claude.ai/design export).
+   ============================================================ */
+:root {
+  color-scheme: dark;
+
+  /* ---- Ink: surface ramp (deep ocean → elevated) ---- */
+  --ink-950: #020b18; /* app background — deepest ocean */
+  --ink-900: #061428; /* card / panel */
+  --ink-850: #071830; /* muted fill */
+  --ink-800: #0a2040; /* input / secondary surface */
+  --ink-700: #0d2a48; /* elevated / accent surface */
+  --ink-600: #16395f; /* hairline-strong / divider */
+  --ink-500: #24507e; /* disabled stroke */
+
+  /* ---- Foreground / text ---- */
+  --fg: #e8f4ff; /* primary text — moonlight */
+  --fg-muted: #a0c8e0; /* secondary text */
+  --fg-subtle: #6b9ab8; /* tertiary / labels / captions */
+  --fg-faint: #41617a; /* disabled text */
+
+  /* ---- Teal: signature primary (wayfinding) ---- */
+  --teal-300: #5cf2d8;
+  --teal-400: #2ee6c5;
+  --teal-500: #00c8a8; /* PRIMARY */
+  --teal-600: #00b497;
+  --teal-700: #008f78;
+  --teal-ink: #00100d; /* text on teal */
+
+  /* ---- Amber: achievement / streak / energy ---- */
+  --amber-300: #fcd34d;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+
+  /* ---- Continent palette (cartographic accents) ---- */
+  --c-americas: #fb923c;
+  --c-europe: #38bdf8;
+  --c-africa: #34d399;
+  --c-asia: #f472b6;
+  --c-oceania: #818cf8;
+
+  --c-americas-fill: #7c4a1e;
+  --c-europe-fill: #1e4a7c;
+  --c-africa-fill: #1e6e3a;
+  --c-asia-fill: #6e1e3a;
+  --c-oceania-fill: #3a1e7c;
+  
+  /* ---- Semantic ---- */
+  --success: #22c55e;
+  --success-fg: #052e16;
+  --danger: #ef4444;
+  --danger-fg: #ffffff;
+  --warning: #f59e0b;
+  --info: #38bdf8;
+
+  /* ---- Semantic aliases — prefer these in components ---- */
+  --background: var(--ink-950);
+  --surface: var(--ink-900);
+  --surface-muted: var(--ink-850);
+  --surface-input: var(--ink-800);
+  --surface-elevated: var(--ink-700);
+
+  --text-primary: var(--fg);
+  --text-secondary: var(--fg-muted);
+  --text-tertiary: var(--fg-subtle);
+  --text-disabled: var(--fg-faint);
+
+  --primary: var(--teal-500);
+  --primary-hover: var(--teal-400);
+  --primary-active: var(--teal-600);
+  --primary-fg: var(--teal-ink);
+
+  --accent: var(--amber-400);
+
+  --border: rgba(0, 200, 168, 0.1);
+  --border-strong: rgba(0, 200, 168, 0.22);
+  --border-neutral: rgba(232, 244, 255, 0.08);
+  --border-neutral-strong: rgba(232, 244, 255, 0.14);
+
+  --ring: var(--teal-500);
+  --switch-background: var(--ink-700);
+
+  --overlay-1: rgba(232, 244, 255, 0.03);
+  --overlay-2: rgba(232, 244, 255, 0.06);
+  --overlay-3: rgba(232, 244, 255, 0.1);
+  --scrim: rgba(2, 11, 24, 0.72);
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+  --weight-black: 900;
+
+  /* NOTE: the type scale (--text-*), radius scale (--radius-*), tracking
+     (--tracking-*), leading (--leading-*), shadows (--shadow-*) and easing
+     (--ease-out/--ease-in-out) are Tailwind v4 reserved theme namespaces —
+     they're declared once in theme.css's `@theme inline` block (Tailwind's
+     sanctioned override mechanism) instead of here, so utility classes and
+     var() reads agree. See theme.css. */
+
+  /* ---- Spacing scale (4px grid) ---- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---- Container widths ---- */
+  --width-prose: 42rem;
+  --width-app: 30rem;
+  --width-content: 64rem;
+
+  /* ---- Elevation (composite / non-scale, safe from Tailwind's reserved
+     --shadow-* namespace since these are named differently) ---- */
+  --edge-top: inset 0 1px 0 rgba(232, 244, 255, 0.06);
+  --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(232, 244, 255, 0.05);
+  --glow-primary: 0 0 0 3px rgba(0, 200, 168, 0.25);
+  --glow-primary-lg: 0 8px 24px rgba(0, 200, 168, 0.28);
+  --glow-focus: 0 0 0 3px rgba(0, 200, 168, 0.35);
+  --glow-amber: 0 0 0 3px rgba(251, 191, 36, 0.22);
+
+  /* ---- Motion ---- */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 400ms;
+  --dur-slower: 700ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --press-scale: 0.97;
+  --hover-lift: 1.02;
+}
+
+@keyframes atlas-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes atlas-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes atlas-pop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes atlas-rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes atlas-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes atlas-sheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* tabular numerals helper — scores, populations, timers */
+.atlas-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* uppercase eyebrow / label treatment */
+.atlas-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* faint cartographic grid backdrop (optional decorative layer) */
+.atlas-grid-bg {
+  background-color: var(--background);
+  background-image: linear-gradient(rgba(0, 200, 168, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 200, 168, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ink-700);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--background);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-600);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* native range input — teal thumb on a thin track */
+.atlas-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--overlay-2);
+  outline: none;
+  cursor: pointer;
+}
+.atlas-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: 2px solid var(--background);
+  box-shadow: var(--glow-primary);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.atlas-range::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+.atlas-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: 2px solid var(--background);
+  box-shadow: var(--glow-primary);
+}

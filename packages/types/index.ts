@@ -1,7 +1,15 @@
 export type Continent = "Africa" | "Americas" | "Asia" | "Europe" | "Oceania";
 export type Region = "World" | Continent;
 export type MapState = "neutral" | "correct" | "incorrect" | "found" | "missed";
-export type Screen = "home" | "find-country" | "results";
+export type Screen =
+  | "landing"
+  | "login"
+  | "intro"
+  | "matchmaking"
+  | "find"
+  | "trivia"
+  | "learning"
+  | "results";
 
 export interface Country {
   iso2: string;
