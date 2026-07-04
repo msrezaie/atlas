@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   ArrowLeft,
   Flame,
   CheckCircle2,
   XCircle,
-  Sparkles,
+  Flag as FlagIcon,
+  Keyboard,
   Radar,
 } from "lucide-react";
 import type { Region } from "@atlas/types";
@@ -18,11 +20,17 @@ import { TimerRing } from "../ui/game/TimerRing";
 import { FlagChoiceGrid } from "../ui/game/FlagChoiceGrid";
 import { FeedbackBar } from "../ui/game/FeedbackBar";
 import { Badge } from "../ui/display/Badge";
-import { genTrivia, type TriviaQuestion } from "../../lib/trivia";
+import { Flag } from "../ui/display/Flag";
+import { Button } from "../ui/actions/Button";
+import {
+  genFlagQuestions,
+  checkTypedAnswer,
+  type FlagQuestion,
+} from "../../lib/flagGuesser";
 import type { PlayMode } from "../../lib/gameMode";
 
-export interface TriviaResult {
-  mode: "trivia";
+export interface FlagGuesserResult {
+  mode: "flag";
   play: PlayMode;
   score: number;
   oppScore: number;
@@ -32,12 +40,12 @@ export interface TriviaResult {
   opponentName: string;
 }
 
-export interface TriviaScreenProps {
+export interface FlagGuesserScreenProps {
   play: PlayMode;
   region: Region;
   roundLen: number;
   opponentName: string;
-  onFinish: (result: TriviaResult) => void;
+  onFinish: (result: FlagGuesserResult) => void;
   onHome: () => void;
 }
 
@@ -45,27 +53,50 @@ const BY_ISO = Object.fromEntries(COUNTRIES.map((c) => [c.iso2, c]));
 const calcPoints = (tl: number) =>
   Math.max(1, Math.round((tl / TIME_LIMIT) * 4));
 
+const inputStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  height: 52,
+  padding: "0 16px",
+  background: "var(--surface-input)",
+  border: "1px solid var(--border-neutral-strong)",
+  borderRadius: "var(--radius-md)",
+  color: "var(--fg)",
+  fontFamily: "var(--font-body)",
+  fontSize: 17,
+  fontWeight: 600,
+  textAlign: "center",
+  outline: "none",
+  transition: "border-color var(--dur-base) var(--ease-out)",
+};
+
 /**
- * AI-generated question, answered by picking a country flag. Solo (speed
- * scoring) and 1v1 versus (first correct answer wins the round).
+ * Flag Guesser round — mixes "which flag is X?" multiple-choice with
+ * "name this flag" typed-answer questions. Solo mixes both; 1v1 versus
+ * only ever receives multiple-choice questions (see genFlagQuestions'
+ * `allowTyped` — typing would skew a race by typing speed).
  */
-export function TriviaScreen({
+export function FlagGuesserScreen({
   play,
   region,
   roundLen,
   opponentName,
   onFinish,
   onHome,
-}: TriviaScreenProps) {
+}: FlagGuesserScreenProps) {
   const versus = play === "versus";
 
-  const [questions] = useState<TriviaQuestion[]>(() =>
-    genTrivia(region, roundLen),
+  const [questions] = useState<FlagQuestion[]>(() =>
+    genFlagQuestions(region, roundLen, !versus),
   );
   const [qi, setQi] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [graded, setGraded] = useState<Record<string, "correct" | "incorrect">>(
     {},
+  );
+  const [typedValue, setTypedValue] = useState("");
+  const [typedStatus, setTypedStatus] = useState<"correct" | "incorrect" | null>(
+    null,
   );
   const [answered, setAnswered] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean } | null>(null);
@@ -113,14 +144,14 @@ export function TriviaScreen({
 
   useEffect(() => {
     if (versus) return;
-    if (timeLeft === 0 && !refs.current.answered && q) settleSolo(null);
+    if (timeLeft === 0 && !refs.current.answered && q) settleSolo(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft]);
 
   useEffect(() => () => clearTimeout(advTimer.current), []);
 
   function reveal(): Record<string, "correct" | "incorrect"> {
-    return q ? { [q.answerIso2]: "correct" } : {};
+    return q && q.kind === "mc" ? { [q.answerIso2]: "correct" } : {};
   }
 
   function nextSoon() {
@@ -128,7 +159,7 @@ export function TriviaScreen({
       const next = refs.current.qi + 1;
       if (next >= questions.length) {
         onFinish({
-          mode: "trivia",
+          mode: "flag",
           play,
           score: refs.current.score,
           oppScore: refs.current.opp,
@@ -141,6 +172,8 @@ export function TriviaScreen({
         setQi(next);
         setPicked(null);
         setGraded({});
+        setTypedValue("");
+        setTypedStatus(null);
         setAnswered(false);
         refs.current.answered = false;
         refs.current.youMissed = false;
@@ -149,12 +182,10 @@ export function TriviaScreen({
     }, 1600);
   }
 
-  function settleSolo(iso2: string | null) {
+  function settleSolo(ok: boolean, wrongIso2?: string) {
     if (!q) return;
     refs.current.answered = true;
     setAnswered(true);
-    const ok = iso2 === q.answerIso2;
-    const g = reveal();
     if (ok) {
       refs.current.score += calcPoints(timeLeft);
       refs.current.streak++;
@@ -164,10 +195,17 @@ export function TriviaScreen({
         refs.current.streak,
       );
     } else {
-      if (iso2) g[iso2] = "incorrect";
       refs.current.streak = 0;
     }
-    setGraded(g);
+    if (q.kind === "mc") {
+      const g: Record<string, "correct" | "incorrect"> = {
+        [q.answerIso2]: "correct",
+      };
+      if (!ok && wrongIso2) g[wrongIso2] = "incorrect";
+      setGraded(g);
+    } else {
+      setTypedStatus(ok ? "correct" : "incorrect");
+    }
     setFeedback({ ok });
     setScore(refs.current.score);
     setStreak(refs.current.streak);
@@ -195,7 +233,7 @@ export function TriviaScreen({
   }
 
   function handlePick(iso2: string) {
-    if (refs.current.answered || !q) return;
+    if (refs.current.answered || !q || q.kind !== "mc") return;
     setPicked(iso2);
     const correct = iso2 === q.answerIso2;
     if (versus) {
@@ -205,11 +243,19 @@ export function TriviaScreen({
         setGraded((s) => ({ ...s, [iso2]: "incorrect" }));
       }
     } else {
-      settleSolo(iso2);
+      settleSolo(correct, correct ? undefined : iso2);
     }
   }
 
+  function handleTypedSubmit() {
+    if (refs.current.answered || !q || q.kind !== "typed") return;
+    const c = BY_ISO[q.answerIso2];
+    if (!c) return;
+    settleSolo(checkTypedAnswer(typedValue, c));
+  }
+
   if (!q) return null;
+  const isMc = q.kind === "mc";
 
   return (
     <div
@@ -260,8 +306,11 @@ export function TriviaScreen({
             justifyContent: "space-between",
           }}
         >
-          <Badge tone="primary" icon={<Sparkles size={12} />}>
-            AI Question
+          <Badge
+            tone="primary"
+            icon={isMc ? <FlagIcon size={12} /> : <Keyboard size={12} />}
+          >
+            {isMc ? "Pick the flag" : "Type the country"}
           </Badge>
           {!versus && (
             <TimerRing
@@ -284,35 +333,102 @@ export function TriviaScreen({
           )}
         </div>
 
-        <h2
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 23,
-            fontWeight: 800,
-            letterSpacing: "-0.01em",
-            color: "var(--fg)",
-            margin: 0,
-            lineHeight: 1.2,
-          }}
-        >
-          {q.prompt}
-        </h2>
-
-        <FlagChoiceGrid
-          options={q.choices}
-          value={picked}
-          states={graded}
-          onSelect={handlePick}
-          disabled={answered}
-          columns={2}
-        />
+        {isMc ? (
+          <>
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 23,
+                fontWeight: 800,
+                letterSpacing: "-0.01em",
+                color: "var(--fg)",
+                margin: 0,
+                lineHeight: 1.2,
+              }}
+            >
+              Which flag belongs to {BY_ISO[q.answerIso2]?.name}?
+            </h2>
+            <FlagChoiceGrid
+              options={q.choices}
+              value={picked}
+              states={graded}
+              onSelect={handlePick}
+              disabled={answered}
+              columns={2}
+              showName={false}
+            />
+          </>
+        ) : (
+          <>
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 23,
+                fontWeight: 800,
+                letterSpacing: "-0.01em",
+                color: "var(--fg)",
+                margin: 0,
+                lineHeight: 1.2,
+                textAlign: "center",
+              }}
+            >
+              Name this flag
+            </h2>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "8px 0",
+              }}
+            >
+              <Flag
+                iso2={q.answerIso2}
+                name={answered ? q.answerName : undefined}
+                size="xl"
+              />
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleTypedSubmit();
+              }}
+              style={{ display: "flex", flexDirection: "column", gap: 12 }}
+            >
+              <input
+                autoFocus
+                value={typedValue}
+                onChange={(e) => setTypedValue(e.target.value)}
+                disabled={answered}
+                placeholder="Country name…"
+                style={{
+                  ...inputStyle,
+                  borderColor:
+                    typedStatus === "correct"
+                      ? "var(--success)"
+                      : typedStatus === "incorrect"
+                        ? "var(--danger)"
+                        : "var(--border-neutral-strong)",
+                }}
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                disabled={answered || !typedValue.trim()}
+              >
+                Submit
+              </Button>
+            </form>
+          </>
+        )}
       </div>
 
       <FeedbackBar
         status={
           feedback === null ? null : feedback.ok ? "correct" : "incorrect"
         }
-        correctAnswer={BY_ISO[q.answerIso2]?.name}
+        correctAnswer={q.answerName}
         icon={feedback?.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
       />
     </div>

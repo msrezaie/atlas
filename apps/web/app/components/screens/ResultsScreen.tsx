@@ -15,8 +15,9 @@ import { StatTile } from "../ui/display/StatTile";
 import { Badge } from "../ui/display/Badge";
 import type { FindCountryResult } from "./FindCountryScreen";
 import type { TriviaResult } from "./TriviaScreen";
+import type { FlagGuesserResult } from "./FlagGuesserScreen";
 
-export type GameResult = FindCountryResult | TriviaResult;
+export type GameResult = FindCountryResult | TriviaResult | FlagGuesserResult;
 
 export interface ResultsScreenProps {
   result: GameResult;

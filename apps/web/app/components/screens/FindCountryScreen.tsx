@@ -18,7 +18,7 @@ import { TimerRing } from "../ui/game/TimerRing";
 import { Flag } from "../ui/display/Flag";
 import { FeedbackBar } from "../ui/game/FeedbackBar";
 import { WorldMapGame } from "../find-country/WorldMapGame";
-import type { PlayMode } from "./ModeIntroScreen";
+import type { PlayMode } from "../../lib/gameMode";
 
 export interface FindCountryResult {
   mode: "find";
@@ -263,7 +263,7 @@ export function FindCountryScreen({
                 gap: 10,
               }}
             >
-              <Flag iso2={current.iso2} name={current.name} size="md" />
+              <Flag iso2={current.iso2} name={current.name} size="lg" />
               <span
                 style={{
                   fontFamily: "var(--font-display)",

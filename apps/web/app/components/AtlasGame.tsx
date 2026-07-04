@@ -1,27 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Region } from "@atlas/types";
-import { LandingScreen, type ModeId } from "./screens/LandingScreen";
+import { LandingScreen } from "./screens/LandingScreen";
 import { LoginScreen } from "./screens/LoginScreen";
-import {
-  ModeIntroScreen,
-  type ModeIntroConfig,
-} from "./screens/ModeIntroScreen";
+import { SoloHubScreen } from "./screens/SoloHubScreen";
+import { VersusHubScreen } from "./screens/VersusHubScreen";
 import { MatchmakingScreen } from "./screens/MatchmakingScreen";
 import { FindCountryScreen } from "./screens/FindCountryScreen";
 import { TriviaScreen } from "./screens/TriviaScreen";
+import { FlagGuesserScreen } from "./screens/FlagGuesserScreen";
 import { LearningScreen } from "./screens/LearningScreen";
 import { ResultsScreen, type GameResult } from "./screens/ResultsScreen";
-import { TiltedGlobe, type GlobeAnchor } from "./shared/TiltedGlobe";
+import { TiltedGlobe, type GlobeAnchor, type Frame } from "./shared/TiltedGlobe";
+import type { GameMode, RoundConfig } from "../lib/gameMode";
 
 type Screen =
   | "landing"
   | "login"
-  | "intro"
+  | "solo-hub"
+  | "versus-hub"
   | "matchmaking"
   | "find"
   | "trivia"
+  | "flag"
   | "learning"
   | "results";
 
@@ -33,12 +35,14 @@ type Screen =
 const GLOBE_ANCHOR: Partial<Record<Screen, GlobeAnchor>> = {
   landing: "bottom",
   login: "bottom",
+  "solo-hub": "left",
+  "versus-hub": "right",
   matchmaking: "center",
 };
 
 const BEST_KEY = "atlas_best_v2";
 
-function loadBest(): Partial<Record<ModeId, number>> {
+function loadBest(): Partial<Record<GameMode, number>> {
   try {
     return JSON.parse(localStorage.getItem(BEST_KEY) || "{}");
   } catch {
@@ -48,7 +52,7 @@ function loadBest(): Partial<Record<ModeId, number>> {
 
 export default function AtlasGame() {
   const [screen, setScreen] = useState<Screen>("landing");
-  const [cfg, setCfg] = useState<ModeIntroConfig>({
+  const [cfg, setCfg] = useState<RoundConfig>({
     mode: "find",
     play: "solo",
     region: "World" as Region,
@@ -56,29 +60,41 @@ export default function AtlasGame() {
   });
   const [opponent, setOpponent] = useState("Mia");
   const [result, setResult] = useState<GameResult | null>(null);
+  // The landing page glues the globe to its scroll: it hands up a `getTarget`
+  // driver (a ref-reading function, so scrolling never re-renders here) that the
+  // shared globe polls each frame. Null when not on the landing.
+  const [landingGetTarget, setLandingGetTarget] = useState<
+    ((w: number, h: number) => Frame) | null
+  >(null);
   // Starts empty (matching the server-rendered HTML) and is filled in from
   // localStorage after mount — reading it in the initial state would give
   // the server and the client's first render different output (server has
   // no `window`, so it always sees `{}`), which is a hydration mismatch.
-  const [best, setBest] = useState<Partial<Record<ModeId, number>>>({});
+  const [best, setBest] = useState<Partial<Record<GameMode, number>>>({});
 
   useEffect(() => {
     setBest(loadBest());
   }, []);
 
-  function pickMode(mode: ModeId) {
-    if (mode === "learning") {
-      setScreen("learning");
-      return;
-    }
-    setCfg((c) => ({ ...c, mode }));
-    setScreen("intro");
+  // Wrap the setter: `getTarget` is a function, and passing a function to a
+  // useState setter is interpreted as an updater `(prev) => next`. The extra
+  // `() =>` stores the driver itself instead of invoking it. Stable identity so
+  // the landing's wiring effect doesn't re-run each render.
+  const handleGlobeTarget = useCallback(
+    (fn: ((w: number, h: number) => Frame) | null) =>
+      setLandingGetTarget(() => fn),
+    [],
+  );
+
+  function pickVersus(mode: GameMode) {
+    // 1v1 skips config entirely — always a fixed, fair, worldwide round.
+    setCfg({ mode, play: "versus", region: "World", roundLen: 10 });
+    setScreen("matchmaking");
   }
 
-  function startFrom(nextCfg: ModeIntroConfig) {
+  function startSolo(nextCfg: RoundConfig) {
     setCfg(nextCfg);
-    if (nextCfg.play === "versus") setScreen("matchmaking");
-    else setScreen(nextCfg.mode === "trivia" ? "trivia" : "find");
+    setScreen(nextCfg.mode);
   }
 
   function finish(r: GameResult) {
@@ -93,7 +109,7 @@ export default function AtlasGame() {
 
   function replay() {
     if (cfg.play === "versus") setScreen("matchmaking");
-    else setScreen(cfg.mode === "trivia" ? "trivia" : "find");
+    else setScreen(cfg.mode);
   }
 
   const playProps = {
@@ -104,16 +120,8 @@ export default function AtlasGame() {
     onHome: () => setScreen("landing"),
   };
 
-  // "intro" is shared by both Find the Country and Geo Trivia, so it needs
-  // its own anchor per mode rather than a single static entry in the table —
-  // find peeks from the left, trivia from the right.
-  const globeAnchor: GlobeAnchor =
-    screen === "intro"
-      ? cfg.mode === "trivia"
-        ? "right"
-        : "left"
-      : (GLOBE_ANCHOR[screen] ?? "bottom");
-  const showGlobe = screen in GLOBE_ANCHOR || screen === "intro";
+  const globeAnchor: GlobeAnchor = GLOBE_ANCHOR[screen] ?? "bottom";
+  const showGlobe = screen in GLOBE_ANCHOR;
 
   return (
     <div style={{ height: "100dvh", overflow: "hidden", position: "relative" }}>
@@ -130,15 +138,22 @@ export default function AtlasGame() {
           pointerEvents: "none",
         }}
       >
-        <TiltedGlobe anchor={globeAnchor} />
+        <TiltedGlobe
+          anchor={globeAnchor}
+          getTarget={
+            screen === "landing" ? (landingGetTarget ?? undefined) : undefined
+          }
+        />
       </div>
 
       <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
         {screen === "landing" && (
           <LandingScreen
-            best={best}
-            onPickMode={pickMode}
+            onSolo={() => setScreen("solo-hub")}
+            onVersus={() => setScreen("versus-hub")}
+            onExplore={() => setScreen("learning")}
             onSignIn={() => setScreen("login")}
+            onGlobeTarget={handleGlobeTarget}
           />
         )}
         {screen === "login" && (
@@ -147,19 +162,25 @@ export default function AtlasGame() {
             onSignedIn={() => setScreen("landing")}
           />
         )}
-        {screen === "intro" && cfg.mode !== "learning" && (
-          <ModeIntroScreen
-            mode={cfg.mode}
+        {screen === "solo-hub" && (
+          <SoloHubScreen
+            best={best}
+            onStart={startSolo}
             onBack={() => setScreen("landing")}
-            onStart={startFrom}
+          />
+        )}
+        {screen === "versus-hub" && (
+          <VersusHubScreen
+            onPick={pickVersus}
+            onBack={() => setScreen("landing")}
           />
         )}
         {screen === "matchmaking" && (
           <MatchmakingScreen
-            onCancel={() => setScreen("intro")}
+            onCancel={() => setScreen("versus-hub")}
             onReady={(opp) => {
               setOpponent(opp);
-              setScreen(cfg.mode === "trivia" ? "trivia" : "find");
+              setScreen(cfg.mode);
             }}
           />
         )}
@@ -168,6 +189,9 @@ export default function AtlasGame() {
         )}
         {screen === "trivia" && (
           <TriviaScreen {...playProps} onFinish={finish} />
+        )}
+        {screen === "flag" && (
+          <FlagGuesserScreen {...playProps} onFinish={finish} />
         )}
         {screen === "learning" && (
           <LearningScreen onHome={() => setScreen("landing")} />

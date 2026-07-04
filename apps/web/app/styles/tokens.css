@@ -190,6 +190,11 @@
     transform: translateY(0);
   }
 }
+@keyframes atlas-globe-spin {
+  to {
+    transform: rotateY(360deg);
+  }
+}
 
 /* tabular numerals helper — scores, populations, timers */
 .atlas-tnum {

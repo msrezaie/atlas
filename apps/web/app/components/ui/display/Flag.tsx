@@ -11,6 +11,7 @@ export interface FlagProps extends Omit<
   /** @default "md" */
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   rounded?: boolean;
+  /** Applied to the outer frame (the atomic flag element). */
   style?: CSSProperties;
 }
 
@@ -26,9 +27,12 @@ const SIZES: Record<
 };
 
 /**
- * Country flag in a framed tile. Sources from flagcdn.com by ISO-3166
- * alpha-2 code (lowercase). Slightly rounded with a hairline frame so
- * white flags read on the dark surface.
+ * Country flag in a fixed-size "chip" frame. The flag is drawn at its *natural*
+ * aspect ratio (`object-fit: contain`), so irregular flags display correctly
+ * rather than being cropped or stretched — Nepal's non-rectangular pennant, and
+ * the square Swiss and Vatican flags, all show in full. The frame keeps a
+ * consistent footprint for layout; its subtle matting fills whatever letterbox
+ * space a non-3:2 flag leaves, so the set reads as one uniform system.
  */
 export function Flag({
   iso2,
@@ -40,24 +44,35 @@ export function Flag({
 }: FlagProps) {
   const s = SIZES[size] ?? SIZES.md;
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`https://flagcdn.com/${String(iso2).toLowerCase()}.svg`}
-      alt={name ? `Flag of ${name}` : `${iso2} flag`}
-      width={s.w}
-      height={s.h}
+    <span
       style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
         width: s.w,
         height: s.h,
-        objectFit: "cover",
+        flexShrink: 0,
+        boxSizing: "border-box",
         borderRadius: rounded ? s.r : 0,
         border: "1px solid var(--border-neutral-strong)",
+        background: "var(--overlay-2)",
         boxShadow: "var(--shadow-sm)",
-        display: "block",
-        flexShrink: 0,
+        overflow: "hidden",
         ...style,
       }}
-      {...rest}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`https://flagcdn.com/${String(iso2).toLowerCase()}.svg`}
+        alt={name ? `Flag of ${name}` : `${iso2} flag`}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: "block",
+        }}
+        {...rest}
+      />
+    </span>
   );
 }

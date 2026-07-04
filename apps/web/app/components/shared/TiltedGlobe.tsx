@@ -6,21 +6,26 @@ import { GEO_URL_GLOBE } from "@atlas/data";
 
 export type GlobeAnchor = "bottom" | "right" | "left" | "center" | "top";
 
+export interface Frame {
+  r: number;
+  tx: number;
+  ty: number;
+}
+
 export interface TiltedGlobeProps {
   /** Which edge of the parent the globe's center is pushed past, so only a
    *  slice shows — like a horizon seen from orbit. Changing this eases the
    *  globe's framing to the new anchor instead of snapping. @default "bottom" */
   anchor?: GlobeAnchor;
+  /** Continuous driver — called every animation frame with the current
+   *  viewport size, returning the exact target frame. When set, it overrides
+   *  `anchor` and the globe tracks it tightly (used to glue the globe to
+   *  scroll). Read via a ref, so updating what it returns never re-renders. */
+  getTarget?: (w: number, h: number) => Frame;
   spin?: boolean;
   /** GeoJSON FeatureCollection URL. @default GEO_URL_GLOBE */
   src?: string;
   className?: string;
-}
-
-interface Frame {
-  r: number;
-  tx: number;
-  ty: number;
 }
 
 /** Target scale + translate for a given anchor, in the current viewport. */
@@ -38,6 +43,12 @@ function targetFrame(anchor: GlobeAnchor, W: number, H: number): Frame {
       const r = Math.min(W, H) * 0.42;
       return { r, tx: -r * 0.12, ty: H * 0.62 };
     }
+    case "top": {
+      // Mirror of "bottom" — big globe pushed above the viewport so only
+      // the bottom rim shows.
+      const r = Math.max(W * 0.62, H * 0.95);
+      return { r, tx: W * 0.5, ty: -r * 0.42 };
+    }
     case "center":
     default: {
       const r = Math.min(W, H) * 0.42;
@@ -46,7 +57,7 @@ function targetFrame(anchor: GlobeAnchor, W: number, H: number): Frame {
   }
 }
 // `bottom`'s ty depends on r (H + r * 0.42), computed after r is known.
-function resolveTarget(anchor: GlobeAnchor, W: number, H: number): Frame {
+export function resolveTarget(anchor: GlobeAnchor, W: number, H: number): Frame {
   const f = targetFrame(anchor, W, H);
   if (anchor === "bottom") f.ty = H + f.r * 0.42;
   return f;
@@ -61,6 +72,7 @@ function resolveTarget(anchor: GlobeAnchor, W: number, H: number): Frame {
  */
 export function TiltedGlobe({
   anchor = "bottom",
+  getTarget,
   spin = true,
   src = GEO_URL_GLOBE,
   className,
@@ -69,12 +81,14 @@ export function TiltedGlobe({
   const landRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const rafRef = useRef(0);
   const anchorRef = useRef(anchor);
+  const getTargetRef = useRef(getTarget);
   const spinRef = useRef(spin);
 
   useEffect(() => {
     anchorRef.current = anchor;
+    getTargetRef.current = getTarget;
     spinRef.current = spin;
-  }, [anchor, spin]);
+  }, [anchor, getTarget, spin]);
 
   useEffect(() => {
     let alive = true;
@@ -149,12 +163,14 @@ export function TiltedGlobe({
     function draw() {
       const land = landRef.current;
 
-      // Ease the framing toward the current anchor's target every frame.
-      // Exponential smoothing (not time-based) — simple, frame-rate-stable
-      // enough at 60fps, and naturally re-targets mid-flight if anchor
-      // changes again before settling.
-      const target = resolveTarget(anchorRef.current, W, H);
-      const ease = 0.055;
+      // Ease the framing toward the current target every frame. Exponential
+      // smoothing (not time-based) — simple, frame-rate-stable enough at 60fps,
+      // and naturally re-targets mid-flight if the target changes before
+      // settling. A `getTarget` driver (scroll-glued landing) overrides the
+      // anchor and is tracked faster so it feels tied to the scrollbar.
+      const gt = getTargetRef.current;
+      const target = gt ? gt(W, H) : resolveTarget(anchorRef.current, W, H);
+      const ease = gt ? 0.2 : 0.055;
       frame.r += (target.r - frame.r) * ease;
       frame.tx += (target.tx - frame.tx) * ease;
       frame.ty += (target.ty - frame.ty) * ease;

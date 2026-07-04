@@ -1,33 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plus, Minus, RotateCcw } from "lucide-react";
-import { geoCentroid } from "d3-geo";
 import type { MapState, Region } from "@atlas/types";
-import { GEO_URL, NUM_TO_ISO2, REGION_VIEW, LOCATOR_DOTS } from "@atlas/data";
+import { NUM_TO_ISO2, REGION_VIEW, LOCATOR_DOTS } from "@atlas/data";
+import {
+  ISO2_TO_NUM,
+  createCountryMap,
+  buildDotFeatures,
+} from "../../lib/countryMap";
+import { GlobeSpinner } from "../shared/GlobeSpinner";
+import { MapZoomControls } from "../shared/MapZoomControls";
 
-// Defer the fetch to first use; module-level fetch would run during SSR,
-// where Node rejects the relative URL.
-let geoPromise: Promise<GeoJSON.FeatureCollection> | null = null;
-const loadGeo = () =>
-  (geoPromise ??= fetch(GEO_URL)
-    .then((r) => r.json() as Promise<GeoJSON.FeatureCollection>)
-    .catch((err) => {
-      console.error("Failed to load geojson", err);
-      geoPromise = null;
-      throw err;
-    }));
-
-const ISO2_TO_NUM: Record<string, number> = Object.fromEntries(
-  Object.entries(NUM_TO_ISO2).map(([num, iso2]) => [iso2, parseInt(num)]),
-);
-
-// ── Map style ─────────────────────────────────────────────────────────────────
-// No tile source — just a flat ocean background with our GeoJSON countries on top.
-const WATER = "#70D6EB";
-
+// ── Palette (game-specific: selectable vs locked, plus correct/incorrect) ─────
 const LAND_LOCKED = "#6fb3a9"; // not selectable — recedes
 const LAND_SELECTABLE = "#c8dbd4"; // selectable — lighter, invites a click
 const LAND_HOVER = "#dce8e2"; // selectable + hovered — muted teal, not bright
@@ -39,57 +25,6 @@ const BORDER_SELECTABLE = "#7fa8bd";
 const BORDER_HOVER = "#8fd4c6";
 const BORDER_CORRECT = "#16a34a";
 const BORDER_INCORRECT = "#dc2626";
-
-const MAP_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: { "background-color": WATER },
-    },
-  ],
-};
-
-// A small tileable "wavy water" texture — the water base tone plus faint
-// sine-wave rows, drawn once and registered as a MapLibre background-pattern
-// (patterns replace background-color, so the base tone is baked into the
-// tile itself). Tile size (48) is evenly divisible by both the row spacing
-// (16, → 3 rows) and the wavelength (24, → 2 full cycles per row), so it
-// tiles seamlessly in both directions.
-function buildWavePattern(dpr: number): ImageData {
-  const size = 28;
-  const px = Math.round(size * dpr);
-  const canvas = document.createElement("canvas");
-  canvas.width = px;
-  canvas.height = px;
-  const ctx = canvas.getContext("2d")!;
-  ctx.scale(dpr, dpr);
-
-  ctx.fillStyle = WATER;
-  ctx.fillRect(0, 0, size, size);
-
-  ctx.strokeStyle = "rgba(255,255,255,0.15)";
-  ctx.lineWidth = 1.5;
-  const rows = 3;
-  const rowGap = size / rows;
-  const wavelength = size / 2;
-  const amplitude = 3.5;
-
-  for (let r = 0; r < rows; r++) {
-    const y = rowGap * r + rowGap / 2;
-    ctx.beginPath();
-    for (let x = 0; x <= size; x++) {
-      const yy = y + Math.sin((x / wavelength) * Math.PI * 2) * amplitude;
-      if (x === 0) ctx.moveTo(x, yy);
-      else ctx.lineTo(x, yy);
-    }
-    ctx.stroke();
-  }
-
-  return ctx.getImageData(0, 0, px, px);
-}
 
 // ── Paint expressions (read from feature-state set via setFeatureState) ───────
 
@@ -161,6 +96,14 @@ export function WorldMapGame({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const hoveredId = useRef<number | null>(null);
   const hoveredDot = useRef<number | null>(null);
+  const [ready, setReady] = useState(false);
+  const [showLoader, setShowLoader] = useState(true);
+
+  useEffect(() => {
+    if (!ready) return;
+    const t = setTimeout(() => setShowLoader(false), 300);
+    return () => clearTimeout(t);
+  }, [ready]);
 
   // Refs so event handlers always see current values without re-registering
   const answeredRef = useRef(answered);
@@ -184,16 +127,73 @@ export function WorldMapGame({
   // ── Initialise map once ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
-    const view = REGION_VIEW[region];
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: view.center as [number, number],
-      zoom: view.zoom,
-      minZoom: view.minZoom,
-      maxZoom: 16,
-      attributionControl: false,
+    const map = createCountryMap(containerRef.current, REGION_VIEW[region], {
+      onReady: () => setReady(true),
+      addLayers: (map) => {
+        map.addLayer({
+          id: "country-fills",
+          type: "fill",
+          source: "countries",
+          paint: { "fill-color": FILL_EXPR, "fill-opacity": 1 },
+        });
+        map.addLayer({
+          id: "country-borders",
+          type: "line",
+          source: "countries",
+          paint: {
+            "line-color": BORDER_COLOR_EXPR,
+            "line-width": BORDER_WIDTH_EXPR,
+          },
+        });
+
+        map.addSource("country-dots", {
+          type: "geojson",
+          data: buildDotFeatures(),
+        });
+        map.addLayer({
+          id: "country-dots",
+          type: "circle",
+          source: "country-dots",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              1,
+              ["case", ["boolean", ["feature-state", "hover"], false], 6, 4],
+              6,
+              ["case", ["boolean", ["feature-state", "hover"], false], 8.5, 6.5],
+            ],
+            "circle-color": [
+              "case",
+              ["==", ["feature-state", "status"], "correct"],
+              LAND_CORRECT,
+              ["==", ["feature-state", "status"], "incorrect"],
+              LAND_INCORRECT,
+              BORDER_HOVER,
+            ],
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": BORDER_SELECTABLE,
+            // only show dots for countries in the current quiz pool
+            "circle-opacity": [
+              "case",
+              ["boolean", ["feature-state", "inPool"], false],
+              0.95,
+              0,
+            ],
+            "circle-stroke-opacity": [
+              "case",
+              ["boolean", ["feature-state", "inPool"], false],
+              1,
+              0,
+            ],
+          },
+        });
+
+        // Apply any game state that arrived before the source was ready
+        applyFeatureStates(map, quizPoolRef.current, countryStatesRef.current);
+      },
     });
     mapRef.current = map;
 
@@ -215,96 +215,6 @@ export function WorldMapGame({
     const isClickable = (iso2: string) =>
       quizPoolRef.current.has(iso2) &&
       countryStatesRef.current[iso2] !== "correct";
-
-    map.on("load", async () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      if (!map.hasImage("water-waves")) {
-        map.addImage("water-waves", buildWavePattern(dpr), { pixelRatio: dpr });
-      }
-      map.setPaintProperty("background", "background-pattern", "water-waves");
-
-      const geojson = await loadGeo();
-
-      map.addSource("countries", { type: "geojson", data: geojson });
-
-      map.addLayer({
-        id: "country-fills",
-        type: "fill",
-        source: "countries",
-        paint: { "fill-color": FILL_EXPR, "fill-opacity": 1 },
-      });
-      map.addLayer({
-        id: "country-borders",
-        type: "line",
-        source: "countries",
-        paint: {
-          "line-color": BORDER_COLOR_EXPR,
-          "line-width": BORDER_WIDTH_EXPR,
-        },
-      });
-      const dotFeatures = geojson.features
-        .filter((f) => {
-          const iso2 = NUM_TO_ISO2[Number(f.id)];
-          return iso2 && LOCATOR_DOTS.has(iso2);
-        })
-        .map((f) => ({
-          type: "Feature" as const,
-          id: Number(f.id), // same numeric id as the polygon
-          properties: { iso2: NUM_TO_ISO2[Number(f.id)] },
-          geometry: {
-            type: "Point" as const,
-            coordinates: geoCentroid(f as GeoJSON.Feature),
-          },
-        }));
-
-      map.addSource("country-dots", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: dotFeatures },
-      });
-
-      map.addLayer({
-        id: "country-dots",
-        type: "circle",
-        source: "country-dots",
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            1,
-            ["case", ["boolean", ["feature-state", "hover"], false], 6, 4],
-            6,
-            ["case", ["boolean", ["feature-state", "hover"], false], 8.5, 6.5],
-          ],
-          "circle-color": [
-            "case",
-            ["==", ["feature-state", "status"], "correct"],
-            LAND_CORRECT,
-            ["==", ["feature-state", "status"], "incorrect"],
-            LAND_INCORRECT,
-            BORDER_HOVER,
-          ],
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": BORDER_SELECTABLE,
-          // only show dots for countries in the current quiz pool
-          "circle-opacity": [
-            "case",
-            ["boolean", ["feature-state", "inPool"], false],
-            0.95,
-            0,
-          ],
-          "circle-stroke-opacity": [
-            "case",
-            ["boolean", ["feature-state", "inPool"], false],
-            1,
-            0,
-          ],
-        },
-      });
-
-      // Apply any game state that arrived before the source was ready
-      applyFeatureStates(map, quizPoolRef.current, countryStatesRef.current);
-    });
 
     // Hover
     map.on("mousemove", "country-fills", (e) => {
@@ -433,28 +343,30 @@ export function WorldMapGame({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
 
-      <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 z-10">
-        {(
-          [
-            { icon: <Plus className="w-3.5 h-3.5" />, action: zoomIn },
-            { icon: <Minus className="w-3.5 h-3.5" />, action: zoomOut },
-            { icon: <RotateCcw className="w-3 h-3" />, action: resetView },
-          ] as const
-        ).map(({ icon, action }, i) => (
-          <button
-            key={i}
-            onClick={action}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-md"
-            style={{
-              background: "var(--surface-elevated)",
-              border: "1px solid var(--border-strong)",
-              color: "var(--fg-muted)",
-            }}
-          >
-            {icon}
-          </button>
-        ))}
-      </div>
+      {showLoader && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--surface)",
+            opacity: ready ? 0 : 1,
+            pointerEvents: ready ? "none" : "auto",
+            transition: "opacity 300ms ease-out",
+          }}
+        >
+          <GlobeSpinner size={64} label="Loading map…" />
+        </div>
+      )}
+
+      <MapZoomControls
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetView}
+      />
 
       <p
         className="absolute bottom-4 left-4 text-[10px] font-medium select-none z-10 px-2 py-1 rounded-md"

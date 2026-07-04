@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader } from "lucide-react";
 import { Button } from "../ui/actions/Button";
+import { GlobeSpinner } from "../shared/GlobeSpinner";
 
 export interface MatchmakingScreenProps {
   onReady: (opponent: string) => void;
@@ -154,16 +154,7 @@ export function MatchmakingScreen({
               }}
             >
               {phase === "searching" ? (
-                <span style={{ color: "var(--fg-subtle)", display: "flex" }}>
-                  <span
-                    style={{
-                      animation: "atlas-spin 1s linear infinite",
-                      display: "flex",
-                    }}
-                  >
-                    <Loader size={22} />
-                  </span>
-                </span>
+                <GlobeSpinner size={40} />
               ) : (
                 <span
                   style={{
