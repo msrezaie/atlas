@@ -5,6 +5,8 @@ export interface TimerRingProps {
   total?: number;
   size?: number;
   stroke?: number;
+  /** Decimal places for the centre readout (1 = show tenths). @default 0 */
+  decimals?: number;
 }
 
 /**
@@ -16,6 +18,7 @@ export function TimerRing({
   total = 10,
   size = 44,
   stroke = 4,
+  decimals = 0,
 }: TimerRingProps) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
@@ -51,8 +54,7 @@ export function TimerRing({
           strokeDasharray={circ}
           strokeDashoffset={circ * (1 - frac)}
           style={{
-            transition:
-              "stroke-dashoffset 1s linear, stroke var(--dur-base) var(--ease-out)",
+            transition: `stroke-dashoffset ${decimals > 0 ? "120ms" : "1s"} linear, stroke var(--dur-base) var(--ease-out)`,
           }}
         />
       </svg>
@@ -65,12 +67,13 @@ export function TimerRing({
           justifyContent: "center",
           fontFamily: "var(--font-display)",
           fontWeight: "var(--weight-black)" as unknown as number,
-          fontSize: size * 0.36,
+          fontSize: decimals > 0 ? size * 0.3 : size * 0.36,
           color,
           fontVariantNumeric: "tabular-nums",
+          letterSpacing: "-0.02em",
         }}
       >
-        {timeLeft}
+        {timeLeft.toFixed(decimals)}
       </span>
     </div>
   );

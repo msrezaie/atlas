@@ -77,12 +77,23 @@ const BORDER_WIDTH_EXPR: maplibregl.ExpressionSpecification = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+// Disputed/unrecognised territories the dataset draws as their own features but
+// that aren't playable countries (no ISO mapping). Morocco's polygon actually
+// covers Western Sahara, so without special handling clicks there resolve to
+// Morocco and the two read as one shape. We paint these on top as locked and
+// block interaction over them. Numeric feature ids: 732 = W. Sahara.
+const DISPUTED_IDS = [732];
+const isDisputedUnder = (features?: maplibregl.MapGeoJSONFeature[]) =>
+  !!features?.some((f) => DISPUTED_IDS.includes(Number(f.id)));
+
 interface WorldMapGameProps {
   countryStates: Record<string, MapState>;
   onCountryClick: (iso2: string) => void;
   region: Region;
   quizPool: Set<string>;
   answered: boolean;
+  /** Fired once the map has loaded and painted, so the caller can start play. */
+  onReady?: () => void;
 }
 
 export function WorldMapGame({
@@ -91,6 +102,7 @@ export function WorldMapGame({
   region,
   quizPool,
   answered,
+  onReady,
 }: WorldMapGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -98,9 +110,14 @@ export function WorldMapGame({
   const hoveredDot = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [showLoader, setShowLoader] = useState(true);
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     if (!ready) return;
+    onReadyRef.current?.();
     const t = setTimeout(() => setShowLoader(false), 300);
     return () => clearTimeout(t);
   }, [ready]);
@@ -144,6 +161,33 @@ export function WorldMapGame({
           paint: {
             "line-color": BORDER_COLOR_EXPR,
             "line-width": BORDER_WIDTH_EXPR,
+          },
+        });
+
+        // Disputed territories (Western Sahara) drawn on top as locked, with a
+        // dashed border, so they read as distinct from the country whose polygon
+        // underlaps them (Morocco) rather than fused into one shape.
+        const disputedFilter: maplibregl.FilterSpecification = [
+          "in",
+          ["id"],
+          ["literal", DISPUTED_IDS],
+        ];
+        map.addLayer({
+          id: "disputed-fills",
+          type: "fill",
+          source: "countries",
+          filter: disputedFilter,
+          paint: { "fill-color": LAND_LOCKED, "fill-opacity": 1 },
+        });
+        map.addLayer({
+          id: "disputed-borders",
+          type: "line",
+          source: "countries",
+          filter: disputedFilter,
+          paint: {
+            "line-color": BORDER_LOCKED,
+            "line-width": 0.8,
+            "line-dasharray": [3, 2],
           },
         });
 
@@ -207,25 +251,38 @@ export function WorldMapGame({
         });
     };
 
-    // In the quiz pool AND not already resolved. A country that's been
-    // wrongly guessed ("incorrect") stays clickable — it can still be a
-    // later question's real target. A country that's already been the
-    // correct answer ("correct") is done; clicking it again would overwrite
-    // its green mark with red the next time it's (wrongly) picked.
-    const isClickable = (iso2: string) =>
-      quizPoolRef.current.has(iso2) &&
-      countryStatesRef.current[iso2] !== "correct";
+    // Clickable only while unresolved: in the quiz pool and not already marked.
+    // A country resolved in an earlier round — found ("correct") or missed
+    // ("incorrect") — is locked. Targets never repeat within a game, so a marked
+    // country is never a future answer.
+    const isClickable = (iso2: string) => {
+      const st = countryStatesRef.current[iso2];
+      return (
+        quizPoolRef.current.has(iso2) && st !== "correct" && st !== "incorrect"
+      );
+    };
 
     // Hover
+    const clearHover = () => {
+      if (hoveredId.current !== null) {
+        map.setFeatureState(
+          { source: "countries", id: hoveredId.current },
+          { hover: false },
+        );
+        hoveredId.current = null;
+      }
+    };
+
     map.on("mousemove", "country-fills", (e) => {
       if (activeDotUnder(e.point)) {
-        if (hoveredId.current !== null) {
-          map.setFeatureState(
-            { source: "countries", id: hoveredId.current },
-            { hover: false },
-          );
-          hoveredId.current = null;
-        }
+        clearHover();
+        return;
+      }
+      // Over a disputed territory (e.g. Western Sahara) — not selectable, and
+      // don't let the underlapping country (Morocco) light up.
+      if (isDisputedUnder(e.features)) {
+        clearHover();
+        map.getCanvas().style.cursor = "default";
         return;
       }
       const id = e.features?.[0]?.id as number | undefined;
@@ -257,6 +314,7 @@ export function WorldMapGame({
     // Click — uses ref so it always calls the current question's handler
     map.on("click", "country-fills", (e) => {
       if (activeDotUnder(e.point)) return;
+      if (isDisputedUnder(e.features)) return;
 
       const numId = e.features?.[0]?.id as number | undefined;
       if (numId == null) return;

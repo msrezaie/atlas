@@ -81,19 +81,38 @@ export function ScoreBar({
         {streak >= 2 && (
           <StatPill icon={flameIcon} value={streak} tone="amber" pulse />
         )}
-        <span
+        <div
           style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            lineHeight: 1,
             minWidth: 40,
-            textAlign: "right",
-            fontFamily: "var(--font-display)",
-            fontWeight: "var(--weight-black)" as unknown as number,
-            fontSize: "var(--text-xl)",
-            color: "var(--primary)",
-            fontVariantNumeric: "tabular-nums",
           }}
         >
-          {score}
-        </span>
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.09em",
+              textTransform: "uppercase",
+              color: "var(--fg-subtle)",
+            }}
+          >
+            Score
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: "var(--weight-black)" as unknown as number,
+              fontSize: "var(--text-xl)",
+              color: "var(--primary)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {score}
+          </span>
+        </div>
       </div>
     </div>
   );

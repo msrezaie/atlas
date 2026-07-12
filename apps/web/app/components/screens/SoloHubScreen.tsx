@@ -17,6 +17,7 @@ import { filterRegion } from "@atlas/game-logic";
 import { IconButton } from "../ui/actions/IconButton";
 import { Button } from "../ui/actions/Button";
 import { ModeCard } from "../ui/game/ModeCard";
+import { Leaderboard } from "../ui/game/Leaderboard";
 import { SegmentedControl } from "../ui/forms/SegmentedControl";
 import { RangeSlider } from "../ui/forms/RangeSlider";
 import type { GameMode, RoundConfig } from "../../lib/gameMode";
@@ -136,6 +137,28 @@ export function SoloHubScreen({ best, onStart, onBack }: SoloHubScreenProps) {
                 onClick={() => setMode(m)}
               />
             ))}
+            <div style={{ marginTop: 6 }}>
+              <Leaderboard
+                title="Leaderboard"
+                options={[
+                  {
+                    key: "solo_xp",
+                    filterCol: "solo_games",
+                    label: "Solo XP",
+                    value: (r) => Number(r.solo_xp).toLocaleString(),
+                    unit: "XP",
+                  },
+                  {
+                    key: "best_avg_ms",
+                    filterCol: "timed_solo_games",
+                    label: "Fastest",
+                    ascending: true,
+                    value: (r) => (Number(r.best_avg_ms) / 1000).toFixed(1),
+                    unit: "s/q",
+                  },
+                ]}
+              />
+            </div>
           </>
         ) : (
           <>

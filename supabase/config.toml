@@ -1,0 +1,6 @@
+# Supabase CLI config. `supabase link --project-ref wcbvflbvetqpxsxdvack` then
+# `supabase db push` applies migrations/ to the hosted project.
+project_id = "wcbvflbvetqpxsxdvack"
+
+[db]
+major_version = 15

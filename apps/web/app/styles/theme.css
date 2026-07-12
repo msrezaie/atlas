@@ -1,90 +1,10 @@
 /* ============================================================
-   Tailwind v4 theme wiring.
-   Atlas's raw + semantic tokens live in tokens.css. Anything that
-   falls in one of Tailwind's *reserved* theme namespaces (font
-   sizes, radius, tracking, leading, shadows, easing) is declared
-   here instead, inside `@theme inline` — Tailwind's sanctioned
-   override point — so utility classes (text-2xl, rounded-xl, …)
-   and var(--text-2xl) reads always agree, regardless of import
-   order.
+   Tailwind v4 theme wiring — base layer only.
+   The `@theme inline` block (shadcn colour aliases + the type / radius /
+   shadow / easing scale) now lives in the @atlas/tokens package and is
+   emitted to theme.generated.css (imported just before this file). This
+   file keeps only the hand-authored `@layer base` element defaults.
    ============================================================ */
-@theme inline {
-  /* shadcn-style semantic colors, sourced from tokens.css */
-  --color-background: var(--background);
-  --color-foreground: var(--fg);
-  --color-card: var(--surface);
-  --color-card-foreground: var(--fg);
-  --color-popover: var(--surface);
-  --color-popover-foreground: var(--fg);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-fg);
-  --color-secondary: var(--surface-input);
-  --color-secondary-foreground: var(--fg-muted);
-  --color-muted: var(--surface-muted);
-  --color-muted-foreground: var(--fg-subtle);
-  --color-accent: var(--surface-elevated);
-  --color-accent-foreground: var(--fg);
-  --color-destructive: var(--danger);
-  --color-destructive-foreground: var(--danger-fg);
-  --color-border: var(--border);
-  --color-input: var(--surface-input);
-  --color-input-background: var(--surface-input);
-  --color-switch-background: var(--switch-background);
-  --color-ring: var(--ring);
-  --color-sidebar: var(--surface);
-  --color-sidebar-foreground: var(--fg);
-  --color-sidebar-primary: var(--primary);
-  --color-sidebar-primary-foreground: var(--primary-fg);
-  --color-sidebar-accent: var(--surface-elevated);
-  --color-sidebar-accent-foreground: var(--fg);
-  --color-sidebar-border: var(--border);
-  --color-sidebar-ring: var(--ring);
-
-  /* Atlas type scale (rem, 16px root) */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.375rem;
-  --text-2xl: 1.75rem;
-  --text-3xl: 2.25rem;
-  --text-4xl: 3rem;
-  --text-5xl: 4rem;
-
-  /* letter spacing */
-  --tracking-tighter: -0.03em;
-  --tracking-tight: -0.015em;
-  --tracking-normal: 0em;
-  --tracking-wide: 0.04em;
-  --tracking-widest: 0.16em;
-
-  /* line height */
-  --leading-none: 1;
-  --leading-tight: 1.15;
-  --leading-snug: 1.3;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.65;
-
-  /* radius — 12px default tile, pills for chips */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
-  --radius-3xl: 1.5rem;
-  --radius-full: 9999px;
-
-  /* ambient drop shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.6);
-
-  /* easing */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;

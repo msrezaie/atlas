@@ -1,34 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import type { CSSProperties } from "react";
 import { ArrowLeft, Globe } from "lucide-react";
 import { Card } from "../ui/display/Card";
 import { Button } from "../ui/actions/Button";
 import { IconButton } from "../ui/actions/IconButton";
+import { useAuth } from "../../lib/auth/AuthProvider";
 
 export interface LoginScreenProps {
   onBack: () => void;
-  onSignedIn: (name: string) => void;
+  /** Called once a session exists synchronously (guest / already signed in). */
+  onSignedIn: () => void;
 }
 
-const inputStyle: CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  height: 48,
-  padding: "0 14px",
-  background: "var(--surface-input)",
-  border: "1px solid var(--border-neutral-strong)",
-  borderRadius: "var(--radius-md)",
-  color: "var(--fg)",
-  fontFamily: "var(--font-body)",
-  fontSize: 15,
-  outline: "none",
-};
-
-/** Minimal auth. Enter a name to "sign in" — mocked, no real backend. */
+/**
+ * Sign-in — Google OAuth, plus anonymous guest play. Email/password paths are
+ * parked until a custom sending domain is set up (email delivery needs it).
+ */
 export function LoginScreen({ onBack, onSignedIn }: LoginScreenProps) {
-  const [name, setName] = useState("");
+  const { user, signInWithGoogle } = useAuth();
+  const [busy, setBusy] = useState<null | "google">(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGoogle() {
+    setError(null);
+    setBusy("google");
+    const res = await signInWithGoogle();
+    // On success the browser redirects away; only reached on error.
+    if (res.error) {
+      setError(res.error);
+      setBusy(null);
+    }
+  }
 
   return (
     <div style={{ position: "relative", height: "100%", overflow: "hidden" }}>
@@ -91,101 +94,61 @@ export function LoginScreen({ onBack, onSignedIn }: LoginScreenProps) {
             >
               Welcome back
             </h1>
-            <p
-              style={{ color: "var(--fg-subtle)", fontSize: 14, marginTop: 6 }}
-            >
+            <p style={{ color: "var(--fg-subtle)", fontSize: 14, marginTop: 6 }}>
               Sign in to track progress &amp; climb the leaderboard
             </p>
           </div>
 
-          <Card padding="lg">
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <label
-                  className="atlas-eyebrow"
-                  style={{ display: "block", marginBottom: 7 }}
-                >
-                  Display name
-                </label>
-                <input
-                  style={inputStyle}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Alex"
-                />
-              </div>
-              <div>
-                <label
-                  className="atlas-eyebrow"
-                  style={{ display: "block", marginBottom: 7 }}
-                >
-                  Email
-                </label>
-                <input
-                  style={inputStyle}
-                  type="email"
-                  placeholder="you@example.com"
-                />
-              </div>
-              <Button
-                variant="primary"
-                size="lg"
-                fullWidth
-                onClick={() => onSignedIn(name || "Player")}
-                style={{ marginTop: 4 }}
-              >
-                Continue
-              </Button>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  margin: "2px 0",
-                }}
-              >
-                <span
+          {user ? (
+            <Card padding="lg">
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p
                   style={{
-                    flex: 1,
-                    height: 1,
-                    background: "var(--border-neutral)",
+                    fontSize: 14,
+                    color: "var(--fg-muted)",
+                    margin: 0,
+                    textAlign: "center",
                   }}
-                />
-                <span style={{ fontSize: 11, color: "var(--fg-faint)" }}>
-                  OR
-                </span>
-                <span
-                  style={{
-                    flex: 1,
-                    height: 1,
-                    background: "var(--border-neutral)",
-                  }}
-                />
+                >
+                  You are already signed in.
+                </p>
+                <Button variant="primary" size="lg" fullWidth onClick={onSignedIn}>
+                  Continue
+                </Button>
               </div>
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={() => onSignedIn("Player")}
-                leftIcon={<Globe size={16} />}
-              >
-                Continue with Google
-              </Button>
-            </div>
-          </Card>
-
-          <button
-            onClick={() => onSignedIn("Guest")}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--fg-subtle)",
-              fontSize: 13,
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-            }}
-          >
-            Skip — play as guest
-          </button>
+            </Card>
+          ) : (
+            <Card padding="lg">
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {error && (
+                  <p style={{ fontSize: 13, color: "var(--danger, #ff6b6b)", margin: 0 }}>
+                    {error}
+                  </p>
+                )}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  disabled={busy !== null}
+                  onClick={handleGoogle}
+                  leftIcon={<Globe size={17} />}
+                >
+                  {busy === "google" ? "Redirecting…" : "Continue with Google"}
+                </Button>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "var(--fg-subtle)",
+                    margin: 0,
+                    textAlign: "center",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  More sign-in options are coming soon.
+                </p>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

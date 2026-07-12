@@ -6,6 +6,8 @@
   "exports": {
     ".": "./index.ts",
     "./utils": "./utils.ts",
-    "./config": "./config.ts"
+    "./config": "./config.ts",
+    "./matchmaking": "./matchmaking.ts",
+    "./seed": "./seed.ts"
   }
 }

@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { LayoutDashboard, Globe2, Users, Settings, Bell, Search } from "lucide-react";
+import { LayoutDashboard, Globe2, Users, Settings, Bell, Search, ArrowLeft } from "lucide-react";
 import { COUNTRIES } from "@atlas/data";
 import { SideNav, type SideNavItem } from "../components/ui/navigation/SideNav";
 import { IconButton } from "../components/ui/actions/IconButton";
-import { MOCK_USERS } from "./data/mockUsers";
 
 interface PageMeta {
   title: string;
@@ -26,7 +26,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   "/admin/users": {
     title: "Users",
-    subtitle: "Manage player, moderator, and admin accounts.",
+    subtitle: "Manage player and admin accounts.",
   },
   "/admin/config": {
     title: "Configuration",
@@ -48,12 +48,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       icon: <Globe2 size={18} />,
       badge: COUNTRIES.length,
     },
-    {
-      id: "/admin/users",
-      label: "Users",
-      icon: <Users size={18} />,
-      badge: MOCK_USERS.length,
-    },
+    { id: "/admin/users", label: "Users", icon: <Users size={18} /> },
     { id: "/admin/config", label: "Configuration", icon: <Settings size={18} /> },
   ];
 
@@ -74,6 +69,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         active={pathname}
         onSelect={(id) => router.push(id)}
         logoSrc="/brand/logo-mark-teal.png"
+        footer={
+          <Link
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px var(--space-3)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--fg-muted)",
+              textDecoration: "none",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--weight-semibold)" as unknown as number,
+            }}
+          >
+            <ArrowLeft size={18} />
+            Back to Atlas
+          </Link>
+        }
       />
 
       <div

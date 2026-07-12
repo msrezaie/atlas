@@ -1,0 +1,15 @@
+{
+  "name": "@atlas/tokens",
+  "version": "0.0.1",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./palette": "./palette.ts",
+    "./scale": "./scale.ts",
+    "./cssvars": "./cssvars.ts"
+  },
+  "scripts": {
+    "build:css": "node --import ./_resolve-ts.mjs build-css.ts"
+  }
+}

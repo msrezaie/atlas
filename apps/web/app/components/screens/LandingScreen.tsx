@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 import {
   UserRound,
   Swords,
@@ -16,6 +17,7 @@ import {
   Users,
   Zap,
   Trophy,
+  Shield,
 } from "lucide-react";
 import { Button } from "../ui/actions/Button";
 import { resolveTarget, type Frame, type GlobeAnchor } from "../shared/TiltedGlobe";
@@ -25,6 +27,11 @@ export interface LandingScreenProps {
   onVersus: () => void;
   onExplore: () => void;
   onSignIn: () => void;
+  onSignOut: () => void;
+  /** Open the account screen (password, sign out). */
+  onAccount: () => void;
+  /** The signed-in (non-guest) account, or null for guests / signed-out. */
+  account: { username: string; isAdmin: boolean } | null;
   /** Hand up a driver the shared globe polls each frame to glue itself to the
    *  scroll (or null to release it). Reads scroll position live, so scrolling
    *  the heavy landing DOM never re-renders it. */
@@ -587,6 +594,9 @@ export function LandingScreen({
   onVersus,
   onExplore,
   onSignIn,
+  onSignOut,
+  onAccount,
+  account,
   onGlobeTarget,
 }: LandingScreenProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -704,9 +714,61 @@ export function LandingScreen({
           </span>
         </div>
         <div style={{ flex: 1 }} />
-        <Button variant="ghost" size="sm" onClick={onSignIn} leftIcon={<UserRound size={15} />}>
-          Sign in
-        </Button>
+        {account ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {account.isAdmin && (
+              <Link
+                href="/admin"
+                aria-label="Open admin dashboard"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "7px 13px",
+                  borderRadius: "var(--radius-full)",
+                  background: "color-mix(in srgb, var(--primary) 16%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--primary) 45%, transparent)",
+                  color: "var(--primary)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                <Shield size={15} />
+                Admin
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={onAccount}
+              aria-label="Account settings"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 12px",
+                borderRadius: "var(--radius-full)",
+                background: "var(--overlay-2)",
+                border: "1px solid var(--border-neutral)",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "var(--fg)",
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              <UserRound size={15} style={{ color: "var(--primary)" }} />
+              {account.username}
+            </button>
+            <Button variant="ghost" size="sm" onClick={onSignOut}>
+              Sign out
+            </Button>
+          </div>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={onSignIn} leftIcon={<UserRound size={15} />}>
+            Sign in
+          </Button>
+        )}
       </div>
 
       {/* Hero */}

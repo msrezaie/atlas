@@ -1,34 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 import { Badge, type BadgeProps } from "../../components/ui/display/Badge";
 import { Button } from "../../components/ui/actions/Button";
 import { DataTable, type DataTableColumn } from "../../components/ui/navigation/DataTable";
-import { MOCK_USERS, type AdminUserRow, type UserRole, type UserStatus } from "../data/mockUsers";
+import { fetchAdminUsers, type AdminUserRow } from "../data/adminQueries";
 
-const ROLE_TONE: Record<UserRole, BadgeProps["tone"]> = {
-  Admin: "primary",
-  Moderator: "amber",
-  Player: "neutral",
+const ROLE_TONE: Record<AdminUserRow["role"], BadgeProps["tone"]> = {
+  admin: "primary",
+  player: "neutral",
 };
-
-const STATUS_TONE: Record<UserStatus, BadgeProps["tone"]> = {
-  Active: "success",
-  Suspended: "danger",
-  Invited: "neutral",
+const ROLE_LABEL: Record<AdminUserRow["role"], string> = {
+  admin: "Admin",
+  player: "Player",
 };
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
-  return `${first}${last}`.toUpperCase();
+  return (`${first}${last}` || name.slice(0, 2)).toUpperCase();
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 const COLUMNS: DataTableColumn<AdminUserRow>[] = [
   {
-    key: "name",
+    key: "username",
     label: "User",
     render: (_value, row) => (
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -48,13 +54,15 @@ const COLUMNS: DataTableColumn<AdminUserRow>[] = [
             fontWeight: "var(--weight-bold)" as unknown as number,
           }}
         >
-          {initials(row.name)}
+          {initials(row.username)}
         </span>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span style={{ color: "var(--fg)", fontWeight: "var(--weight-semibold)" as unknown as number }}>
-            {row.name}
+            {row.username}
           </span>
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-subtle)" }}>{row.email}</span>
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-subtle)" }}>
+            {row.country ? row.country.toUpperCase() : "—"}
+          </span>
         </div>
       </div>
     ),
@@ -62,7 +70,14 @@ const COLUMNS: DataTableColumn<AdminUserRow>[] = [
   {
     key: "role",
     label: "Role",
-    render: (_value, row) => <Badge tone={ROLE_TONE[row.role]}>{row.role}</Badge>,
+    render: (_value, row) => <Badge tone={ROLE_TONE[row.role]}>{ROLE_LABEL[row.role]}</Badge>,
+  },
+  {
+    key: "isGuest",
+    label: "Type",
+    render: (_value, row) => (
+      <Badge tone={row.isGuest ? "amber" : "success"}>{row.isGuest ? "Guest" : "Member"}</Badge>
+    ),
   },
   {
     key: "games",
@@ -79,27 +94,42 @@ const COLUMNS: DataTableColumn<AdminUserRow>[] = [
     render: (_value, row) => row.best.toLocaleString(),
   },
   {
-    key: "status",
-    label: "Status",
-    render: (_value, row) => <Badge tone={STATUS_TONE[row.status]}>{row.status}</Badge>,
-  },
-  {
     key: "joined",
     label: "Joined",
+    render: (_value, row) => fmtDate(row.joined),
   },
 ];
 
-/** Admin table of player accounts — search, role/status badges. */
+/** Admin table of player accounts — live from Supabase, with search. */
 export function UsersPage() {
   const [query, setQuery] = useState("");
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let alive = true;
+    fetchAdminUsers()
+      .then((rows) => {
+        if (alive) {
+          setUsers(rows);
+          setState("ready");
+        }
+      })
+      .catch(() => {
+        if (alive) setState("error");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return MOCK_USERS;
-    return MOCK_USERS.filter(
-      (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+    if (!q) return users;
+    return users.filter(
+      (u) => u.username.toLowerCase().includes(q) || (u.country ?? "").toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, users]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -152,10 +182,14 @@ export function UsersPage() {
       </div>
 
       <span style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)" }}>
-        {rows.length} of {MOCK_USERS.length} users
+        {state === "loading"
+          ? "Loading users…"
+          : state === "error"
+            ? "Couldn't load users."
+            : `${rows.length} of ${users.length} users`}
       </span>
 
-      <DataTable columns={COLUMNS} rows={rows} rowKey="id" />
+      {state !== "error" && <DataTable columns={COLUMNS} rows={rows} rowKey="id" />}
     </div>
   );
 }

@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { ArrowLeft, Globe, Sparkles, Flag as FlagIcon, Zap } from "lucide-react";
 import { IconButton } from "../ui/actions/IconButton";
 import { ModeCard } from "../ui/game/ModeCard";
+import { Leaderboard } from "../ui/game/Leaderboard";
+import { OnlinePill } from "../ui/game/OnlinePill";
 import type { GameMode } from "../../lib/gameMode";
 import { GAME_MODE_META } from "../../lib/gameMode";
 
@@ -63,6 +65,8 @@ export function VersusHubScreen({ onPick, onBack }: VersusHubScreenProps) {
         >
           1v1 Online
         </h1>
+        <div style={{ flex: 1 }} />
+        <OnlinePill accent="var(--c-asia)" />
       </div>
 
       <div
@@ -107,6 +111,21 @@ export function VersusHubScreen({ onPick, onBack }: VersusHubScreenProps) {
             onClick={() => onPick(mode)}
           />
         ))}
+        <div style={{ marginTop: 6 }}>
+          <Leaderboard
+            title="Top 1v1 Players"
+            accent="var(--c-asia)"
+            options={[
+              {
+                key: "versus_wins",
+                filterCol: "versus_games",
+                label: "Wins",
+                value: (r) => String(r.versus_wins),
+                unit: "wins",
+              },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );
