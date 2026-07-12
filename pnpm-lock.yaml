@@ -85,6 +85,9 @@ importers:
       '@atlas/game-logic':
         specifier: workspace:*
         version: link:../../packages/game-logic
+      '@atlas/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@atlas/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -210,6 +213,8 @@ importers:
         version: 8.50.0(eslint@9.39.1(jiti@2.7.0))(typescript@5.9.2)
 
   packages/game-logic: {}
+
+  packages/tokens: {}
 
   packages/types: {}
 
