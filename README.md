@@ -1,159 +1,101 @@
-# Turborepo starter
+# Atlas
 
-This Turborepo starter is maintained by the Turborepo core team.
+> **Atlas** is the working **codename** for this project — the public name and
+> branding aren't finalized. It's used for the repo, the `@atlas/*` package
+> scope, and internal references only.
 
-## Using this example
+A geography game where you race the map. Locate countries, answer geo-trivia,
+and guess flags — solo against your own best time, or 1v1 against another player
+in a live "first correct wins" race. Built as a [Turborepo](https://turborepo.dev)
+monorepo with a Next.js web app, a Supabase backend, and a shared TypeScript core.
 
-Run the following command:
+- **Live (staging):** https://atlas-guesser.netlify.app
+- **Docs:** see [`docs/`](./docs) — start with [`docs/architecture.md`](./docs/architecture.md)
 
-```sh
-npx create-turbo@latest
+> Staging build — not yet branded or on a custom domain.
+
+## Game modes
+
+| Mode                 | What you do                                               | Solo | 1v1 |
+| -------------------- | --------------------------------------------------------- | :--: | :-: |
+| **Find the Country** | Locate the prompted country on a live MapLibre map        |  ✓   |  ✓  |
+| **Geo Trivia**       | Answer multiple-choice questions about countries          |  ✓   |  ✓  |
+| **Flag Guesser**     | Match flags to countries                                  |  ✓   |  ✓  |
+| **Explore**          | Browse countries/regions on a map with facts (no scoring) |  ✓   |  —  |
+
+Solo runs are scored on speed and streak; 1v1 pairs two signed-in players over
+Supabase Realtime and resolves each round to whoever answers correctly first.
+See [`docs/game-design.md`](./docs/game-design.md).
+
+## Monorepo layout
+
+```
+atlas/
+├─ apps/
+│  ├─ web/      Next.js 16 player app + admin dashboard (the product)
+│  ├─ docs/     Turborepo starter app (placeholder — see docs/packages.md)
+│  └─ mobile/   Expo / React Native scaffold (planned; not yet built out)
+├─ packages/
+│  ├─ @atlas/data         Canonical country data (names, flags, facts, map ids)
+│  ├─ @atlas/types        Shared TypeScript types (Country, Region, MapState…)
+│  ├─ @atlas/game-logic   Framework-agnostic rules: scoring, matchmaking, seeded RNG
+│  ├─ @atlas/tokens       Design tokens (source of truth for web CSS + RN)
+│  ├─ @repo/ui            Shared React component stub
+│  ├─ @repo/eslint-config
+│  └─ @repo/typescript-config
+└─ supabase/
+   └─ migrations/         SQL schema, RLS, and RPCs (0001…0007)
 ```
 
-## What's inside?
+Only `apps/web` is a real, deployed app today. The `@atlas/*` packages are
+consumed as TypeScript source (no build step) by the apps.
 
-This Turborepo includes the following packages/apps:
+## Tech stack
 
-### Apps and Packages
+- **Next.js 16** (App Router, React 19, Turbopack) — web app + admin
+- **Supabase** — Postgres, Row-Level Security, Auth (Google OAuth), Realtime
+- **MapLibre GL JS** + **d3-geo** — the interactive maps and landing globe
+- **Turborepo** + **pnpm** workspaces — monorepo orchestration
+- **Netlify** — hosting (staging)
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Quick start
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Prerequisites: **Node ≥ 20** (tested on 22) and **pnpm 9**.
 
 ```sh
-cd my-turborepo
-turbo build
+pnpm install
+
+# configure the web app's Supabase connection
+cp apps/web/.env.example apps/web/.env.local   # then fill in the two values
+
+pnpm dev            # runs every app via turbo (web on :3000, docs on :3001)
+# or just the web app:
+pnpm --filter web dev
 ```
 
-Without global `turbo`, use your package manager:
+Full setup, env vars, and Supabase provisioning: [`docs/getting-started.md`](./docs/getting-started.md).
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
-```
+## Scripts (repo root)
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+| Command            | What it does                                      |
+| ------------------ | ------------------------------------------------- |
+| `pnpm dev`         | `turbo run dev` — all apps in watch mode          |
+| `pnpm build`       | `turbo run build` — build all apps/packages       |
+| `pnpm lint`        | `turbo run lint`                                  |
+| `pnpm check-types` | `turbo run check-types` — typecheck the workspace |
+| `pnpm format`      | Prettier over `**/*.{ts,tsx,md}`                  |
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Scope any of these to one package with `--filter`, e.g. `pnpm --filter web build`.
 
-```sh
-turbo build --filter=docs
-```
+## Documentation
 
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+| Doc                                             | Contents                                                                                    |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [architecture.md](./docs/architecture.md)       | How the web app is structured — screens, the state machine, the persistent globe, data flow |
+| [getting-started.md](./docs/getting-started.md) | Prerequisites, install, env vars, Supabase setup, running each app                          |
+| [packages.md](./docs/packages.md)               | Every workspace package and app, what it does, and how they depend on each other            |
+| [database.md](./docs/database.md)               | Supabase schema, RLS, RPC functions, and the migration workflow                             |
+| [auth.md](./docs/auth.md)                       | The Google OAuth / PKCE flow, `@supabase/ssr`, and the Netlify host gotcha                  |
+| [game-design.md](./docs/game-design.md)         | Scoring, 1v1 matchmaking, in-match live sync, leaderboards                                  |
+| [design-system.md](./docs/design-system.md)     | `@atlas/tokens`: one source of truth for web CSS and React Native                           |
+| [deployment.md](./docs/deployment.md)           | Deploying the web app (Netlify) + the Supabase/Google redirect wiring                       |
