@@ -42,31 +42,6 @@ function callbackUrl(): string {
   return `${window.location.origin}/auth/callback`;
 }
 
-// After an OAuth redirect that lands on a page other than /auth/callback (some
-// hosts drop the code at the site root instead), the browser client still
-// exchanges the `?code=` in place — but the spent code lingers in the URL.
-// Strip it (and any error params) once the client has had its chance to consume
-// it, so the address bar is clean and a refresh can't re-submit a dead code.
-// MUST run only after the exchange (see call sites), never before.
-function stripAuthParams() {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  let changed = false;
-  for (const key of ["code", "error", "error_code", "error_description", "auth_error"]) {
-    if (url.searchParams.has(key)) {
-      url.searchParams.delete(key);
-      changed = true;
-    }
-  }
-  if (changed) {
-    window.history.replaceState(
-      window.history.state,
-      "",
-      url.pathname + url.search + url.hash,
-    );
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = getSupabaseBrowserClient();
   const [user, setUser] = useState<User | null>(null);
@@ -107,21 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // signed-out rather than hanging on the loading state.
       })
       .finally(() => {
-        if (!alive) return;
-        setLoading(false);
-        // getUser() awaits the client's init, which runs the in-URL code
-        // exchange — so by here the code is spent and safe to remove.
-        stripAuthParams();
+        if (alive) setLoading(false);
       });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       loadProfile(nextUser);
-      // A fresh sign-in that resolved after initial load — clean its params too.
-      if (event === "SIGNED_IN") stripAuthParams();
     });
 
     return () => {

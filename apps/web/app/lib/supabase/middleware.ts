@@ -11,6 +11,18 @@ import { SUPABASE_URL, SUPABASE_KEY } from "./env";
  * with the auth server, so the admin check can't be spoofed by a forged cookie.
  */
 export async function updateSession(request: NextRequest) {
+  // OAuth landing safety net. The app always asks Supabase to return to
+  // /auth/callback, but some hosts (seen on Netlify) drop the `?code=` on the
+  // site root instead. Funnel any stray code into the callback route so it's
+  // always exchanged server-side and the URL ends up clean — wherever it lands.
+  const code = request.nextUrl.searchParams.get("code");
+  if (code && request.nextUrl.pathname !== "/auth/callback") {
+    const url = request.nextUrl.clone();
+    url.searchParams.set("next", request.nextUrl.pathname);
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
