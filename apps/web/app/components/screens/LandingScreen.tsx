@@ -20,7 +20,11 @@ import {
   Shield,
 } from "lucide-react";
 import { Button } from "../ui/actions/Button";
-import { resolveTarget, type Frame, type GlobeAnchor } from "../shared/TiltedGlobe";
+import {
+  resolveTarget,
+  type Frame,
+  type GlobeAnchor,
+} from "../shared/TiltedGlobe";
 
 export interface LandingScreenProps {
   onSolo: () => void;
@@ -145,7 +149,8 @@ function HeroTile({
         display: "flex",
         flexDirection: "column",
         gap: 12,
-        boxShadow: "0 14px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)",
+        boxShadow:
+          "0 14px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)",
         // custom prop consumed by the hover rule in the <style> block below
         ["--tile-accent" as string]: accent,
         transition:
@@ -154,12 +159,14 @@ function HeroTile({
       }}
     >
       <span
+        className="lt-icon"
         style={{
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           width: 46,
           height: 46,
+          flexShrink: 0,
           borderRadius: "var(--radius-lg)",
           background: accent,
           color: "var(--ink-950)",
@@ -168,20 +175,38 @@ function HeroTile({
       >
         {icon}
       </span>
+      {/* On mobile the tile becomes a compact row: icon + this body, CTA hidden
+          (see the max-width:767px rules) so all three fit one screen. */}
       <span
+        className="lt-body"
         style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 800,
-          fontSize: 20,
-          color: "var(--fg)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          flex: 1,
+          minWidth: 0,
         }}
       >
-        {title}
-      </span>
-      <span style={{ fontSize: 13.5, color: "var(--fg-muted)", lineHeight: 1.45, flex: 1 }}>
-        {desc}
+        <span
+          className="lt-title"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 800,
+            fontSize: 20,
+            color: "var(--fg)",
+          }}
+        >
+          {title}
+        </span>
+        <span
+          className="lt-desc"
+          style={{ fontSize: 13.5, color: "var(--fg-muted)", lineHeight: 1.45 }}
+        >
+          {desc}
+        </span>
       </span>
       <span
+        className="lt-cta"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -218,9 +243,21 @@ function panel(accent: string, children: ReactNode) {
 
 function SoloVisual({ accent }: { accent: string }) {
   const rows = [
-    { icon: <Globe size={18} />, label: "Find the Country", sub: "Locate it on the map" },
-    { icon: <Sparkles size={18} />, label: "Geo Trivia", sub: "AI-built questions" },
-    { icon: <FlagIcon size={18} />, label: "Flag Guesser", sub: "Match & type names" },
+    {
+      icon: <Globe size={18} />,
+      label: "Find the Country",
+      sub: "Locate it on the map",
+    },
+    {
+      icon: <Sparkles size={18} />,
+      label: "Geo Trivia",
+      sub: "AI-built questions",
+    },
+    {
+      icon: <FlagIcon size={18} />,
+      label: "Flag Guesser",
+      sub: "Match & type names",
+    },
   ];
   return panel(
     accent,
@@ -253,10 +290,19 @@ function SoloVisual({ accent }: { accent: string }) {
             {r.icon}
           </span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14, color: "var(--fg)" }}>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: 14,
+                color: "var(--fg)",
+              }}
+            >
               {r.label}
             </div>
-            <div style={{ fontSize: 12, color: "var(--fg-subtle)" }}>{r.sub}</div>
+            <div style={{ fontSize: 12, color: "var(--fg-subtle)" }}>
+              {r.sub}
+            </div>
           </div>
           <ArrowRight size={15} color="var(--fg-faint)" />
         </div>
@@ -288,7 +334,14 @@ function VersusVisual({ accent }: { accent: string }) {
   );
   return panel(
     accent,
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        alignItems: "center",
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         {puck("YOU", "var(--primary)")}
         <div style={{ textAlign: "center" }}>
@@ -309,8 +362,23 @@ function VersusVisual({ accent }: { accent: string }) {
         </div>
         {puck("MIA", accent)}
       </div>
-      <div style={{ width: "100%", height: 6, borderRadius: 3, background: "var(--overlay-2)", overflow: "hidden" }}>
-        <div style={{ width: "80%", height: "100%", background: "var(--primary)", borderRadius: 3 }} />
+      <div
+        style={{
+          width: "100%",
+          height: 6,
+          borderRadius: 3,
+          background: "var(--overlay-2)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: "80%",
+            height: "100%",
+            background: "var(--primary)",
+            borderRadius: 3,
+          }}
+        />
       </div>
     </div>,
   );
@@ -326,16 +394,26 @@ function ExploreVisual({ accent }: { accent: string }) {
             width: 52,
             height: 34,
             borderRadius: 6,
-            background: "linear-gradient(90deg, #0055a4 33%, #fff 33% 66%, #ef4135 66%)",
+            background:
+              "linear-gradient(90deg, #0055a4 33%, #fff 33% 66%, #ef4135 66%)",
             border: "1px solid var(--border-neutral-strong)",
             flexShrink: 0,
           }}
         />
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: "var(--fg)" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: 18,
+              color: "var(--fg)",
+            }}
+          >
             France
           </div>
-          <div style={{ fontSize: 12, color: "var(--fg-subtle)" }}>Paris · Europe</div>
+          <div style={{ fontSize: 12, color: "var(--fg-subtle)" }}>
+            Paris · Europe
+          </div>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -354,8 +432,15 @@ function ExploreVisual({ accent }: { accent: string }) {
               border: "1px solid var(--border-neutral)",
             }}
           >
-            <div className="atlas-eyebrow" style={{ color: "var(--fg-subtle)" }}>{f.k}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--fg)" }}>{f.v}</div>
+            <div
+              className="atlas-eyebrow"
+              style={{ color: "var(--fg-subtle)" }}
+            >
+              {f.k}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--fg)" }}>
+              {f.v}
+            </div>
           </div>
         ))}
       </div>
@@ -393,7 +478,12 @@ function Section({
   return (
     <section
       data-anchor={dest.anchor}
-      style={{ position: "relative", minHeight: "100%", display: "flex", alignItems: "center" }}
+      style={{
+        position: "relative",
+        minHeight: "100%",
+        display: "flex",
+        alignItems: "center",
+      }}
     >
       {/* A soft radial pool behind the copy rather than a full-height vertical
           band. The old linear scrim spanned the whole section height, so its
@@ -421,7 +511,10 @@ function Section({
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p className="atlas-eyebrow" style={{ color: dest.accent, marginBottom: 14 }}>
+          <p
+            className="atlas-eyebrow"
+            style={{ color: dest.accent, marginBottom: 14 }}
+          >
             {dest.eyebrow}
           </p>
           <h2
@@ -449,7 +542,15 @@ function Section({
           >
             {dest.body}
           </p>
-          <div className="lp-bullets" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 28 }}>
+          <div
+            className="lp-bullets"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 28,
+            }}
+          >
             {dest.bullets.map((b) => (
               <span
                 key={b.label}
@@ -466,18 +567,30 @@ function Section({
                   color: "var(--fg)",
                 }}
               >
-                <span style={{ color: dest.accent, display: "flex" }}>{b.icon}</span>
+                <span style={{ color: dest.accent, display: "flex" }}>
+                  {b.icon}
+                </span>
                 {b.label}
               </span>
             ))}
           </div>
-          <Button variant="primary" size="lg" rightIcon={<ArrowRight size={17} />} onClick={onGo}>
+          <Button
+            variant="primary"
+            size="lg"
+            rightIcon={<ArrowRight size={17} />}
+            onClick={onGo}
+          >
             {dest.cta}
           </Button>
         </div>
         <div
           className="landing-visual"
-          style={{ flex: 1, display: "flex", justifyContent: "center", minWidth: 0 }}
+          style={{
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+            minWidth: 0,
+          }}
         >
           {VISUAL[dest.id](dest.accent)}
         </div>
@@ -490,7 +603,9 @@ function Section({
 function Footer({ nav }: { nav: Record<NavTo, () => void> }) {
   const col = (title: string, items: ReactNode[]) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div className="atlas-eyebrow" style={{ color: "var(--fg-subtle)" }}>{title}</div>
+      <div className="atlas-eyebrow" style={{ color: "var(--fg-subtle)" }}>
+        {title}
+      </div>
       {items}
     </div>
   );
@@ -536,9 +651,20 @@ function Footer({ nav }: { nav: Record<NavTo, () => void> }) {
         }}
       >
         <div style={{ maxWidth: 300 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 12,
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo-mark-teal.png" alt="Atlas" style={{ width: 28, height: 28 }} />
+            <img
+              src="/brand/logo-mark-teal.png"
+              alt="Atlas"
+              style={{ width: 28, height: 28 }}
+            />
             <span
               style={{
                 fontFamily: "var(--font-display)",
@@ -551,13 +677,28 @@ function Footer({ nav }: { nav: Record<NavTo, () => void> }) {
               Atlas
             </span>
           </div>
-          <p style={{ fontSize: 13.5, color: "var(--fg-subtle)", lineHeight: 1.6, margin: 0 }}>
-            Master world geography, the fun way — find, race and explore every country on Earth.
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--fg-subtle)",
+              lineHeight: 1.6,
+              margin: 0,
+            }}
+          >
+            Master world geography, the fun way — find, race and explore every
+            country on Earth.
           </p>
         </div>
         <div style={{ display: "flex", gap: 56, flexWrap: "wrap" }}>
-          {col("Play", [btn("Solo", nav.solo), btn("1v1 Online", nav.versus), btn("Explore", nav.explore)])}
-          {col("Atlas", [a("About", "/about"), a("How to Play", "/how-to-play")])}
+          {col("Play", [
+            btn("Solo", nav.solo),
+            btn("1v1 Online", nav.versus),
+            btn("Explore", nav.explore),
+          ])}
+          {col("Atlas", [
+            a("About", "/about"),
+            a("How to Play", "/how-to-play"),
+          ])}
           {col("Legal", [a("Privacy", "/privacy"), a("Terms", "/terms")])}
         </div>
       </div>
@@ -600,7 +741,11 @@ export function LandingScreen({
   onGlobeTarget,
 }: LandingScreenProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const nav: Record<NavTo, () => void> = { solo: onSolo, versus: onVersus, explore: onExplore };
+  const nav: Record<NavTo, () => void> = {
+    solo: onSolo,
+    versus: onVersus,
+    explore: onExplore,
+  };
 
   // Scroll offset at which each section sits centred in the viewport. The globe
   // interpolates between consecutive centres, so it's exactly at a section's
@@ -610,7 +755,9 @@ export function LandingScreen({
   const computeCenters = useCallback(() => {
     const root = scrollRef.current;
     if (!root) return;
-    const secs = Array.from(root.querySelectorAll<HTMLElement>("[data-anchor]"));
+    const secs = Array.from(
+      root.querySelectorAll<HTMLElement>("[data-anchor]"),
+    );
     const vh = root.clientHeight;
     centersRef.current = secs.map((s) =>
       Math.max(0, s.offsetTop + s.offsetHeight / 2 - vh / 2),
@@ -666,7 +813,10 @@ export function LandingScreen({
   };
 
   return (
-    <div ref={scrollRef} style={{ height: "100%", overflowY: "auto", scrollBehavior: "smooth" }}>
+    <div
+      ref={scrollRef}
+      style={{ height: "100%", overflowY: "auto", scrollBehavior: "smooth" }}
+    >
       <style>{`
         .landing-tile:hover { transform: translateY(-4px);
           box-shadow: 0 20px 44px rgba(0,0,0,0.5), 0 0 0 1px var(--tile-accent), inset 0 1px 0 rgba(255,255,255,0.06); }
@@ -679,7 +829,14 @@ export function LandingScreen({
           .landing-visual { order: -1; }
           .landing-footer-grid { flex-direction: column; }
           .landing-hero-title { font-size: 38px !important; }
-          .landing-hero-tiles { grid-template-columns: 1fr !important; }
+          .landing-hero-tiles { grid-template-columns: 1fr !important; gap: 10px !important; }
+          /* Compact horizontal tiles so all three fit one mobile screen. */
+          .landing-tile { flex-direction: row !important; align-items: center !important; padding: 12px 14px !important; gap: 13px !important; }
+          .landing-tile .lt-icon { width: 40px !important; height: 40px !important; border-radius: var(--radius-md) !important; }
+          .landing-tile .lt-body { gap: 2px !important; }
+          .landing-tile .lt-title { font-size: 16px !important; }
+          .landing-tile .lt-desc { font-size: 12px !important; }
+          .landing-tile .lt-cta { display: none !important; }
           .lp-bullets { justify-content: center; }
         }
       `}</style>
@@ -694,13 +851,18 @@ export function LandingScreen({
           alignItems: "center",
           gap: 24,
           padding: "16px 24px",
-          background: "linear-gradient(180deg, rgba(2,11,24,0.85), rgba(2,11,24,0))",
+          background:
+            "linear-gradient(180deg, rgba(2,11,24,0.85), rgba(2,11,24,0))",
           backdropFilter: "blur(4px)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-mark-teal.png" alt="Atlas" style={{ width: 30, height: 30 }} />
+          <img
+            src="/brand/logo-mark-teal.png"
+            alt="Atlas"
+            style={{ width: 30, height: 30 }}
+          />
           <span
             style={{
               fontFamily: "var(--font-display)",
@@ -726,8 +888,10 @@ export function LandingScreen({
                   gap: 7,
                   padding: "7px 13px",
                   borderRadius: "var(--radius-full)",
-                  background: "color-mix(in srgb, var(--primary) 16%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--primary) 45%, transparent)",
+                  background:
+                    "color-mix(in srgb, var(--primary) 16%, transparent)",
+                  border:
+                    "1px solid color-mix(in srgb, var(--primary) 45%, transparent)",
                   color: "var(--primary)",
                   fontSize: 13,
                   fontWeight: 700,
@@ -765,7 +929,12 @@ export function LandingScreen({
             </Button>
           </div>
         ) : (
-          <Button variant="ghost" size="sm" onClick={onSignIn} leftIcon={<UserRound size={15} />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSignIn}
+            leftIcon={<UserRound size={15} />}
+          >
             Sign in
           </Button>
         )}
@@ -789,9 +958,19 @@ export function LandingScreen({
               "linear-gradient(180deg, rgba(2,11,24,0.7) 0%, rgba(2,11,24,0.25) 42%, rgba(2,11,24,0) 66%)",
           })}
         />
-        <div style={{ position: "relative", maxWidth: 1120, margin: "0 auto", width: "100%" }}>
+        <div
+          style={{
+            position: "relative",
+            maxWidth: 1120,
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
           <div style={{ maxWidth: 720, marginBottom: 34 }}>
-            <p className="atlas-eyebrow" style={{ color: "var(--primary)", marginBottom: 12 }}>
+            <p
+              className="atlas-eyebrow"
+              style={{ color: "var(--primary)", marginBottom: 12 }}
+            >
               Learn the world
             </p>
             <h1
@@ -817,8 +996,9 @@ export function LandingScreen({
                 maxWidth: 540,
               }}
             >
-              Find countries on a live map, race friends in 1v1, and explore every
-              flag, capital and fact — three ways to see the world. Pick one to start.
+              Find countries on a live map, race friends in 1v1, and explore
+              every flag, capital and fact — three ways to see the world. Pick
+              one to start.
             </p>
           </div>
 
